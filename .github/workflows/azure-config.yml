@@ -1,0 +1,36 @@
+name: Configure Azure Web App Settings (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      resource_group:
+        description: 'Azure Resource Group name'
+        required: true
+      webapp_name:
+        description: 'Azure Web App (Linux) name'
+        required: true
+      media_base_url:
+        description: 'MEDIA_BASE_URL value (e.g., https://assets.marketplace.vanshdeshwal.dev)'
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  set-app-settings:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Set MEDIA_BASE_URL app setting
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            az webapp config appsettings set \
+              -g '${{ github.event.inputs.resource_group }}' \
+              -n '${{ github.event.inputs.webapp_name }}' \
+              --settings MEDIA_BASE_URL='${{ github.event.inputs.media_base_url }}'
