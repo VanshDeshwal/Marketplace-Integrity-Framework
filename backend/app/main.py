@@ -141,7 +141,9 @@ TEXT_MODEL_NAME = 'all-MiniLM-L6-v2'
 TEXT_MODEL = None
 if SentenceTransformer is not None:
     try:
-        TEXT_MODEL = SentenceTransformer(TEXT_MODEL_NAME)
+        # Only load if we have the required packages and artifacts
+        if os.path.exists(ARTIFACT_DIR):
+            TEXT_MODEL = SentenceTransformer(TEXT_MODEL_NAME)
     except Exception:
         TEXT_MODEL = None
 
@@ -149,10 +151,12 @@ IMG_MODEL = None
 IMG_PREPROCESS = None
 if open_clip is not None and torch is not None:
     try:
-        IMG_MODEL, _, IMG_PREPROCESS = open_clip.create_model_and_transforms('ViT-B-32', pretrained='openai')
-        IMG_MODEL.eval()
-        if torch.cuda.is_available():
-            IMG_MODEL.to('cuda')
+        # Only load if we have the required packages and artifacts
+        if os.path.exists(ARTIFACT_DIR):
+            IMG_MODEL, _, IMG_PREPROCESS = open_clip.create_model_and_transforms('ViT-B-32', pretrained='openai')
+            IMG_MODEL.eval()
+            if torch.cuda.is_available():
+                IMG_MODEL.to('cuda')
     except Exception:
         IMG_MODEL = None
         IMG_PREPROCESS = None
@@ -293,7 +297,22 @@ def _build_fraud_model():
 
 @app.get('/health')
 def health():
-    info = {'status': 'ok', 'artifacts_loaded': {k: (v is not None) for k, v in ART.items()}}
+    # Basic health check that works without ML dependencies
+    info = {
+        'status': 'ok',
+        'environment': 'production',
+        'ml_dependencies': {
+            'sentence_transformers': SentenceTransformer is not None,
+            'torch': torch is not None,
+            'faiss': faiss is not None,
+            'open_clip': open_clip is not None
+        },
+        'artifacts_loaded': {k: (v is not None) for k, v in ART.items()},
+        'models_loaded': {
+            'text_model': TEXT_MODEL is not None,
+            'image_model': IMG_MODEL is not None
+        }
+    }
     return info
 
 
