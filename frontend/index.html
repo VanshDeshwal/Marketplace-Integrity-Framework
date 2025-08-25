@@ -265,7 +265,7 @@
       envLabel.textContent = IS_LOCAL ? 'local' : 'hosted'
   const API_BASE = IS_LOCAL ? 'http://localhost:8000' : 'https://api.marketplace.vanshdeshwal.dev'
   // Media base for images (Azure Blob in prod, local media server or backend fallback in dev)
-  const MEDIA_BASE = IS_LOCAL ? (localStorage.getItem('mediaBase') || '') : 'https://assets.marketplace.vanshdeshwal.dev'
+  const MEDIA_BASE = IS_LOCAL ? (localStorage.getItem('mediaBase') || '') : 'https://marketplacestoragevd.blob.core.windows.net/catalog'
       const ping = async () => {
         try {
           const resp = await fetch(API_BASE + '/health', { cache:'no-store' })

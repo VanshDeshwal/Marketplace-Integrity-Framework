@@ -8,7 +8,7 @@ from typing import List, Optional, Dict, Any
 
 app = FastAPI(title="Similarity-Driven Catalog Intelligence - Backend")
 
-# CORS (dev-friendly: allow all; tighten later for prod)
+# CORS configuration for production and development
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -16,6 +16,8 @@ app.add_middleware(
         "http://127.0.0.1",
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "https://marketplace.vanshdeshwal.dev",
+        "https://vanshdeshwal.github.io",
     ],
     allow_origin_regex=".*",    # also allow any other origin (dev-friendly)
     allow_credentials=False,     # '*' with credentials is disallowed by browsers
