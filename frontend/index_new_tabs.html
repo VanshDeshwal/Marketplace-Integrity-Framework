@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Marketplace Integrity Framework</title>
+    <style>
+      :root {
+        --bg: #111;
+        --bg2: #1a1a1a;
+        --bg3: #252525;
+        --text: #e8e8e8;
+        --text2: #a8a8a8;
+        --border: #333;
+        --primary: #0ea5e9;
+        --primary-hover: #0284c7;
+        --primary-light: rgba(14, 165, 233, 0.1);
+        --success: #22c55e;
+        --warning: #f59e0b;
+        --err: #ef4444;
+        --radius: 8px;
+        --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+        --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+      }
+
+      body.light {
+        --bg: #ffffff;
+        --bg2: #f8fafc;
+        --bg3: #f1f5f9;
+        --text: #1e293b;
+        --text2: #64748b;
+        --border: #e2e8f0;
+        --primary: #0ea5e9;
+        --primary-hover: #0284c7;
+        --primary-light: rgba(14, 165, 233, 0.1);
+        --success: #22c55e;
+        --warning: #f59e0b;
+        --err: #ef4444;
+        --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      }
+
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      html { font-size: 16px; }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.6;
+        min-height: 100vh;
+        transition: all 0.2s ease;
+      }
+
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 0 24px;
+      }
+
+      /* Header */
+      header {
+        background: var(--bg2);
+        border-bottom: 1px solid var(--border);
+        padding: 20px 0;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        backdrop-filter: blur(10px);
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+
+      .logo {
+        width: 48px;
+        height: 48px;
+        background: linear-gradient(135deg, var(--primary), #6366f1);
+        border-radius: var(--radius);
+        flex-shrink: 0;
+      }
+
+      .brand h1 {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--text);
+        margin: 0;
+      }
+
+      .sub {
+        color: var(--text2);
+        font-size: 0.95rem;
+        margin: 4px 0 0 0;
+      }
+
+      .toolbar {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+      }
+
+      /* Tabs */
+      .tabs {
+        display: flex;
+        gap: 8px;
+        margin: 32px 0;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 0;
+      }
+
+      .tab {
+        background: none;
+        border: none;
+        color: var(--text2);
+        padding: 12px 20px;
+        border-radius: var(--radius) var(--radius) 0 0;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 1rem;
+        font-weight: 500;
+        position: relative;
+      }
+
+      .tab:hover {
+        background: var(--bg3);
+        color: var(--text);
+      }
+
+      .tab.active {
+        background: var(--bg2);
+        color: var(--primary);
+        border-bottom: 2px solid var(--primary);
+      }
+
+      .tab-content {
+        display: none;
+        animation: fadeIn 0.3s ease;
+      }
+
+      .tab-content.active {
+        display: block;
+      }
+
+      @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      /* Layout */
+      .feature-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 32px;
+        margin-bottom: 32px;
+      }
+
+      @media (max-width: 768px) {
+        .feature-grid {
+          grid-template-columns: 1fr;
+          gap: 24px;
+        }
+      }
+
+      .card {
+        background: var(--bg2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 24px;
+        box-shadow: var(--shadow);
+        transition: all 0.2s ease;
+      }
+
+      .info-box {
+        background: var(--primary-light);
+        border: 1px solid rgba(14, 165, 233, 0.2);
+        border-radius: var(--radius);
+        padding: 20px;
+        margin-top: 24px;
+      }
+
+      .info-box h4 {
+        color: var(--primary);
+        margin: 0 0 12px 0;
+        font-size: 1.1rem;
+      }
+
+      .info-box ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+
+      .info-box li {
+        padding: 4px 0;
+        color: var(--text);
+        font-size: 0.95rem;
+      }
+
+      /* Forms */
+      .grid {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      input[type="text"], input[type="number"], input[type="range"], select {
+        background: var(--bg3);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 10px 14px;
+        color: var(--text);
+        font-size: 0.95rem;
+        transition: all 0.2s ease;
+      }
+
+      input[type="text"]:focus, input[type="number"]:focus, select:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px var(--primary-light);
+      }
+
+      input[type="range"] {
+        flex: 1;
+        min-width: 100px;
+      }
+
+      /* Dropzone */
+      .dropzone {
+        border: 2px dashed var(--border);
+        border-radius: var(--radius);
+        padding: 48px 24px;
+        text-align: center;
+        background: var(--bg3);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        color: var(--text2);
+      }
+
+      .dropzone:hover, .dropzone.drag {
+        border-color: var(--primary);
+        background: var(--primary-light);
+        color: var(--text);
+      }
+
+      /* Buttons */
+      .btn {
+        background: var(--primary);
+        color: white;
+        border: none;
+        border-radius: var(--radius);
+        padding: 10px 20px;
+        font-size: 0.95rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .btn:hover {
+        background: var(--primary-hover);
+        transform: translateY(-1px);
+      }
+
+      .btn.ghost {
+        background: transparent;
+        color: var(--text2);
+        border: 1px solid var(--border);
+      }
+
+      .btn.ghost:hover {
+        background: var(--bg3);
+        color: var(--text);
+        border-color: var(--primary);
+      }
+
+      /* Pills and Labels */
+      .pill {
+        background: var(--bg3);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        padding: 4px 12px;
+        font-size: 0.85rem;
+        color: var(--text2);
+        white-space: nowrap;
+      }
+
+      label {
+        font-size: 0.9rem;
+        color: var(--text2);
+        font-weight: 500;
+        white-space: nowrap;
+      }
+
+      /* API Box */
+      .api-box {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--err);
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .api-box.ok {
+        background: var(--success);
+      }
+
+      /* Thumbnails */
+      .thumb {
+        width: 80px;
+        height: 80px;
+        object-fit: cover;
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+      }
+
+      .thumb-sm {
+        width: 60px;
+        height: 60px;
+        object-fit: cover;
+        border-radius: var(--radius);
+        border: 1px solid var(--border);
+      }
+
+      .hidden {
+        display: none !important;
+      }
+
+      /* Sample Gallery */
+      .samples {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 16px;
+        margin-top: 16px;
+      }
+
+      .sample-card {
+        background: var(--bg3);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        overflow: hidden;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        position: relative;
+      }
+
+      .sample-card:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
+        border-color: var(--primary);
+      }
+
+      .sample-card img {
+        width: 100%;
+        height: 100px;
+        object-fit: cover;
+        display: block;
+      }
+
+      .sample-meta {
+        padding: 8px;
+        font-size: 0.8rem;
+        color: var(--text2);
+        line-height: 1.3;
+        height: 40px;
+        overflow: hidden;
+      }
+
+      .sample-drag {
+        position: absolute;
+        top: 4px;
+        right: 4px;
+        background: var(--primary);
+        color: white;
+        border-radius: 4px;
+        padding: 2px 6px;
+        font-size: 0.7rem;
+        font-weight: 500;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+      }
+
+      .sample-card:hover .sample-drag {
+        opacity: 1;
+      }
+
+      /* Results */
+      .results-container {
+        margin-top: 32px;
+      }
+
+      .results {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .result {
+        display: grid;
+        grid-template-columns: auto 1fr auto auto;
+        gap: 16px;
+        align-items: center;
+        background: var(--bg2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 16px;
+        transition: all 0.2s ease;
+      }
+
+      .result:hover {
+        border-color: var(--primary);
+        box-shadow: var(--shadow);
+      }
+
+      .score {
+        font-family: 'SF Mono', Consolas, monospace;
+        font-size: 0.85rem;
+        color: var(--text2);
+      }
+
+      .kvs {
+        font-family: 'SF Mono', Consolas, monospace;
+        font-size: 0.8rem;
+        color: var(--text2);
+        line-height: 1.4;
+      }
+
+      .kv {
+        display: inline-block;
+        margin-right: 12px;
+        margin-bottom: 4px;
+      }
+
+      .kv b {
+        color: var(--text);
+      }
+
+      .decision-yes {
+        color: var(--success);
+        font-weight: 600;
+      }
+
+      .decision-no {
+        color: var(--text2);
+      }
+
+      /* Loading */
+      .spinner {
+        width: 20px;
+        height: 20px;
+        border: 2px solid var(--bg3);
+        border-top: 2px solid var(--primary);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        display: inline-block;
+      }
+
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+
+      /* Toast */
+      .toast {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        background: var(--bg2);
+        color: var(--text);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 12px 20px;
+        box-shadow: var(--shadow-lg);
+        z-index: 1000;
+        transition: all 0.3s ease;
+        max-width: 400px;
+      }
+
+      .toast.hidden {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+
+      /* Responsive */
+      @media (max-width: 1024px) {
+        .container {
+          padding: 0 16px;
+        }
+        
+        .brand h1 {
+          font-size: 1.5rem;
+        }
+        
+        .tabs {
+          margin: 24px 0;
+        }
+        
+        .tab {
+          padding: 10px 16px;
+          font-size: 0.9rem;
+        }
+      }
+
+      @media (max-width: 768px) {
+        .row {
+          flex-direction: column;
+          align-items: stretch;
+        }
+        
+        .samples {
+          grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+          gap: 12px;
+        }
+        
+        .result {
+          grid-template-columns: 1fr;
+          gap: 12px;
+        }
+        
+        .toolbar {
+          flex-direction: column;
+          gap: 8px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="container" style="display:flex; align-items:center; justify-content:space-between;">
+        <div class="brand">
+          <div class="logo"></div>
+          <div>
+            <h1>Marketplace Integrity Framework</h1>
+            <p class="sub">AI-powered duplicate detection, semantic search, and fraud analysis</p>
+          </div>
+        </div>
+        <div class="toolbar">
+          <div class="pill">Environment: <span id="envLabel">detecting…</span></div>
+          <div id="apiBox" class="api-box" title="Open API docs"></div>
+          <button id="themeBtn" class="btn ghost" title="Toggle theme">🌓</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="container">
+      <!-- Navigation Tabs -->
+      <div class="tabs">
+        <button class="tab active" data-tab="duplicate">🔍 Duplicate Detection</button>
+        <button class="tab" data-tab="search">🔎 Semantic Search</button>
+        <button class="tab" data-tab="fraud">⚠️ Fraud Analysis</button>
+      </div>
+
+      <!-- Tab Content: Duplicate Detection -->
+      <div id="duplicate" class="tab-content active">
+        <div class="feature-grid">
+          <div>
+            <div class="card">
+              <h3 style="margin:0 0 16px 0;">Find Product Duplicates</h3>
+              <p class="muted">Upload an image and/or enter a title to find similar products in the catalog.</p>
+              
+              <form id="fusedOneForm" class="grid" style="margin-top: 24px;">
+                <input id="oneTitle" placeholder="Product title (optional)" />
+                <div id="dropOne" class="dropzone">
+                  <div style="font-size: 2.5rem; margin-bottom: 12px;">📸</div>
+                  <div style="font-size: 1.1rem; margin-bottom: 8px;">Drop an image here or <strong>click to upload</strong></div>
+                  <div style="font-size: 0.9rem; opacity: 0.7;">Supports JPEG, PNG, WebP</div>
+                </div>
+                <input type="file" id="oneImage" accept="image/*" class="hidden" />
+                
+                <div class="row" style="margin-top: 16px; justify-content: space-between;">
+                  <img id="onePreview" class="thumb hidden" alt="preview" />
+                  <div class="row">
+                    <label>Image/Text Balance</label>
+                    <input type="range" id="alphaOne" min="0" max="1" step="0.05" value="0.80" />
+                    <span class="pill" id="alphaOneVal">0.80</span>
+                  </div>
+                  <div class="row">
+                    <label>Results</label>
+                    <input type="number" id="topkOne" value="10" min="1" max="50" style="width:80px" />
+                    <button type="submit" class="btn">Find Duplicates</button>
+                  </div>
+                </div>
+              </form>
+            </div>
+
+            <div class="info-box">
+              <h4>📊 How to Read Results</h4>
+              <ul>
+                <li><strong>Score 0.95+:</strong> Likely identical product</li>
+                <li><strong>Score 0.80-0.95:</strong> Very similar, possible duplicate</li>
+                <li><strong>Decision:</strong> AI classification (duplicate/distinct)</li>
+                <li><strong>Image/Text scores:</strong> Individual similarity components</li>
+              </ul>
+            </div>
+          </div>
+
+          <div>
+            <div class="card">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h4 style="margin: 0;">Sample Gallery</h4>
+                <div class="row" style="gap: 8px;">
+                  <input id="sampleCount" type="number" value="8" min="4" max="20" style="width:70px" />
+                  <button id="randomizeBtn" class="btn ghost">🔄</button>
+                </div>
+              </div>
+              <p class="muted" style="margin-bottom: 20px; font-size: 0.9rem;">Click any sample to test instantly</p>
+              <div id="samples" class="samples"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Content: Semantic Search -->
+      <div id="search" class="tab-content">
+        <div class="card">
+          <h3 style="margin:0 0 16px 0;">Semantic Search</h3>
+          <p class="muted">Search products using natural language descriptions and/or images.</p>
+          
+          <form id="searchForm" class="grid" style="margin-top: 24px;">
+            <input id="searchTitle" placeholder="Search query (e.g., 'red dress', 'wireless headphones')" />
+            <div id="dropSearch" class="dropzone">
+              <div style="font-size: 2.5rem; margin-bottom: 12px;">🖼️</div>
+              <div style="font-size: 1.1rem; margin-bottom: 8px;">Drop an image to search visually or <strong>click to upload</strong></div>
+              <div style="font-size: 0.9rem; opacity: 0.7;">Combine with text for better results</div>
+            </div>
+            <input type="file" id="searchImage" accept="image/*" class="hidden" />
+            
+            <div class="row" style="margin-top: 16px; justify-content: space-between;">
+              <img id="searchPreview" class="thumb hidden" alt="preview" />
+              <div class="row">
+                <label>Search Mode</label>
+                <input type="range" id="alphaSearch" min="0" max="1" step="0.05" value="0.50" />
+                <span class="pill" id="alphaSearchVal">0.50</span>
+              </div>
+              <div class="row">
+                <label>Results</label>
+                <input type="number" id="topkSearch" value="10" min="1" max="50" style="width:80px" />
+                <button type="submit" class="btn">Search</button>
+              </div>
+            </div>
+          </form>
+        </div>
+
+        <div class="info-box">
+          <h4>🎯 Search Tips</h4>
+          <ul>
+            <li><strong>Text-only:</strong> Use descriptive terms like "blue casual shirt" or "gaming laptop"</li>
+            <li><strong>Image-only:</strong> Upload a reference image to find visually similar products</li>
+            <li><strong>Combined:</strong> Use both text and image for most accurate results</li>
+            <li><strong>Slider:</strong> Adjust to favor text (left) or image (right) similarity</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Tab Content: Fraud Analysis -->
+      <div id="fraud" class="tab-content">
+        <div class="card">
+          <h3 style="margin:0 0 16px 0;">Fraud Detection & Seller Analysis</h3>
+          <p class="muted">Analyze seller behavior patterns and detect potential fraud indicators.</p>
+          
+          <div class="grid" style="margin-top: 24px;">
+            <!-- Top Anomalies -->
+            <div>
+              <h4>🔴 Anomaly Detection</h4>
+              <div class="row">
+                <button id="fraudTop" class="btn">Find Top Anomalies</button>
+                <label>Count</label>
+                <input type="number" id="fraudTopN" value="20" min="1" max="100" style="width:80px" />
+                <button id="fraudInsights" class="btn ghost">Seller Risk Analysis</button>
+              </div>
+            </div>
+
+            <!-- Individual Seller -->
+            <div>
+              <h4>🔍 Individual Seller Check</h4>
+              <div class="row" style="margin-bottom: 12px;">
+                <input id="fraudSellerId" placeholder="Enter Seller ID" style="min-width:200px;" />
+                <button id="fraudOne" class="btn">Analyze Seller</button>
+                <button id="fraudDupes" class="btn ghost">Find Duplicates</button>
+              </div>
+              <div class="row" style="gap: 16px;">
+                <label>Algorithm</label>
+                <select id="dupeUse">
+                  <option value="fused" selected>Fused (Image + Text)</option>
+                  <option value="text">Text Only</option>
+                  <option value="image">Image Only</option>
+                </select>
+                <label>Threshold</label>
+                <input type="number" id="dupeThresh" value="0.8" step="0.01" min="0" max="1" style="width:90px" />
+                <label>Max Results</label>
+                <input type="number" id="dupeTop" value="50" min="1" max="200" style="width:80px" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="info-box">
+          <h4>🛡️ Fraud Indicators</h4>
+          <ul>
+            <li><strong>Anomaly Score:</strong> Statistical deviation from normal seller patterns</li>
+            <li><strong>Risk Score:</strong> Combined risk based on inventory, pricing, and behavior</li>
+            <li><strong>Duplicate Products:</strong> Identical listings that may indicate fraud</li>
+            <li><strong>Label Entropy:</strong> Diversity in product categories (low = suspicious)</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Results Container -->
+      <div class="results-container">
+        <div id="results" class="results"></div>
+      </div>
+    </main>
+
+    <div id="toast" class="toast hidden"></div>
+
+    <script>
+      // Utils
+      const $ = (sel) => document.querySelector(sel)
+      const el = (tag, cls) => { const d = document.createElement(tag); if (cls) d.className = cls; return d }
+      const showToast = (msg, ms=2500) => { 
+        const t=$('#toast'); 
+        t.textContent=msg; 
+        t.classList.remove('hidden'); 
+        setTimeout(()=>t.classList.add('hidden'), ms) 
+      }
+
+      // Tab functionality
+      document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          // Remove active from all tabs and contents
+          document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'))
+          document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'))
+          
+          // Add active to clicked tab and corresponding content
+          tab.classList.add('active')
+          document.getElementById(tab.dataset.tab).classList.add('active')
+        })
+      })
+
+      // Theme
+      const applyTheme = (mode) => { 
+        document.body.classList.toggle('light', mode === 'light'); 
+        localStorage.setItem('theme', mode) 
+      }
+      const currentTheme = localStorage.getItem('theme') || 'dark'; 
+      applyTheme(currentTheme)
+      $('#themeBtn').addEventListener('click', () => applyTheme(document.body.classList.contains('light') ? 'dark' : 'light'))
+
+      // Auto-detect environment and API base
+      const envLabel = document.getElementById('envLabel')
+      const apiBox = document.getElementById('apiBox')
+      const isLocalHost = ['localhost','127.0.0.1','::1'].includes(location.hostname)
+      const isFile = location.protocol === 'file:'
+      const IS_LOCAL = isLocalHost || isFile
+      envLabel.textContent = IS_LOCAL ? 'local' : 'hosted'
+      const API_BASE = IS_LOCAL ? 'http://localhost:8000' : 'https://api.marketplace.vanshdeshwal.dev'
+      const MEDIA_BASE = IS_LOCAL ? (localStorage.getItem('mediaBase') || '') : 'https://marketplacestoragevd.blob.core.windows.net/catalog'
+
+      const ping = async () => {
+        try {
+          const resp = await fetch(API_BASE + '/health', { cache:'no-store' })
+          if (!resp.ok) throw new Error('bad status')
+          await resp.json(); 
+          apiBox.classList.add('ok'); 
+          return true
+        } catch {
+          apiBox.classList.remove('ok'); 
+          return false
+        }
+      }
+      apiBox.addEventListener('click', () => window.open(API_BASE + '/docs', '_blank'))
+      ;(async () => { await ping(); setInterval(ping, 10000) })()
+
+      // Dropzones with preview + programmatic drop from sample gallery
+      const wireDrop = (zoneSel, inputSel, previewSel) => {
+        const zone = $(zoneSel), input = $(inputSel), preview = $(previewSel)
+        const openPicker = () => input.click()
+        const setFile = (file) => {
+          if (!file) return
+          const url = URL.createObjectURL(file)
+          preview.src = url; 
+          preview.classList.remove('hidden')
+        }
+        zone.addEventListener('click', openPicker)
+        zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag') })
+        zone.addEventListener('dragleave', () => zone.classList.remove('drag'))
+        zone.addEventListener('drop', e => { 
+          e.preventDefault(); 
+          zone.classList.remove('drag'); 
+          const f = e.dataTransfer.files?.[0] || e.dataTransfer._sampleFile; 
+          if (f) { 
+            const dt = new DataTransfer(); 
+            dt.items.add(f); 
+            input.files = dt.files; 
+            setFile(f) 
+          } 
+        })
+        input.addEventListener('change', e => setFile(e.target.files?.[0]))
+        return { 
+          setFromBlob: (blob, name='sample.jpg') => { 
+            const file = new File([blob], name, { type: blob.type || 'image/jpeg' }); 
+            const dt = new DataTransfer(); 
+            dt.items.add(file); 
+            input.files = dt.files; 
+            const url = URL.createObjectURL(file); 
+            preview.src = url; 
+            preview.classList.remove('hidden') 
+          } 
+        }
+      }
+      const dropSearch = wireDrop('#dropSearch', '#searchImage', '#searchPreview')
+      const dropOne = wireDrop('#dropOne', '#oneImage', '#onePreview')
+
+      // Alpha live labels
+      const alphaOne = $('#alphaOne'), alphaOneVal = $('#alphaOneVal');
+      if (alphaOne) alphaOne.addEventListener('input', () => alphaOneVal.textContent = Number(alphaOne.value).toFixed(2))
+      const alphaSearch = $('#alphaSearch'), alphaSearchVal = $('#alphaSearchVal');
+      if (alphaSearch) alphaSearch.addEventListener('input', () => alphaSearchVal.textContent = Number(alphaSearch.value).toFixed(2))
+
+      const imgSrc = (r) => {
+        // Prefer direct image_url from backend if present (points to blob in prod)
+        if (r.image_url) return r.image_url
+        // Else, try media base + key
+        if (MEDIA_BASE && r.image_key) return `${MEDIA_BASE}/${r.image_key}`
+        // Fallback: backend image endpoint (dev only)
+        return `${API_BASE}/image/${r.idx}`
+      }
+
+      // Sample gallery logic
+      async function loadSamples() {
+        const count = Math.max(4, Math.min(20, Number($('#sampleCount').value || 8)))
+        try {
+          const resp = await fetch(`${API_BASE}/samples?count=${encodeURIComponent(count)}`)
+          const j = await resp.json()
+          if (j.error) { $('#samples').innerHTML = `<div class='muted'>${j.error}</div>`; return }
+          const box = $('#samples'); box.innerHTML = ''
+          j.results.forEach(r => {
+            const card = el('div', 'sample-card')
+            const img = new Image(); img.src = imgSrc(r); img.draggable = true
+            const meta = el('div', 'sample-meta'); meta.textContent = r.title || ''
+            const tag = el('div', 'sample-drag'); tag.textContent = 'Click'
+            card.appendChild(img); card.appendChild(meta); card.appendChild(tag)
+            
+            // enable drag into our dropzones by turning the remote image into a Blob
+            img.addEventListener('dragstart', async (ev) => {
+              try {
+                const res = await fetch(img.src, { mode:'cors' })
+                const blob = await res.blob()
+                const file = new File([blob], `sample_${r.idx}.jpg`, { type: blob.type || 'image/jpeg' })
+                // Stash file on dataTransfer for our drop handler
+                ev.dataTransfer._sampleFile = file
+              } catch (e) { /* ignore */ }
+            })
+            // quick action: click to use
+            card.addEventListener('click', async () => {
+              try {
+                const res = await fetch(img.src, { mode:'cors' })
+                const blob = await res.blob()
+                dropOne.setFromBlob(blob, `sample_${r.idx}.jpg`)
+                showToast('Loaded sample into duplicate checker')
+              } catch (e) {
+                showToast('Failed to load sample')
+              }
+            })
+            box.appendChild(card)
+          })
+        } catch (e) {
+          $('#samples').innerHTML = `<div class='muted'>Failed to load samples</div>`
+        }
+      }
+      $('#randomizeBtn').addEventListener('click', (e) => { e.preventDefault(); loadSamples() })
+      // load on start
+      loadSamples()
+
+      // Result rendering helpers
+      const resBox = document.getElementById('results')
+      const startLoading = (msg='Working...') => { 
+        resBox.innerHTML = `<div class="card" style="text-align: center; padding: 40px;"><span class="spinner"></span> <span style="margin-left: 12px;">${msg}</span></div>` 
+      }
+      const kv = (k, v) => `<span class='kv'><b>${k}</b>: ${v}</span>`
+      const pick = (obj, keys) => Object.fromEntries(Object.entries(obj || {}).filter(([k]) => keys.includes(k)))
+
+      const renderDupFused = (j) => {
+        resBox.innerHTML = ''
+        if (!j.results || j.results.length === 0) {
+          resBox.innerHTML = '<div class="card"><p class="muted">No results found.</p></div>'
+          return
+        }
+        j.results.forEach(r => {
+          const meta = r.meta || {}
+          const row = el('div', 'result')
+          const prob = r.prob !== undefined ? Number(r.prob).toFixed(4) : 'n/a'
+          row.innerHTML = `
+            <img src="${imgSrc(r)}" class="thumb-sm" alt="thumb" onerror="this.style.display='none'"/>
+            <div class='score'>${kv('idx', r.idx)} ${kv('img', Number(r.image_sim ?? r.image_score ?? 0).toFixed(3))} ${kv('txt', Number(r.text_sim ?? r.text_score ?? 0).toFixed(3))}</div>
+            <div class='kvs'>${kv('prob', prob)} <span class='${r.decision ? 'decision-yes' : 'decision-no'}'>${r.decision ? 'duplicate' : 'distinct'}</span> ${Object.entries(pick(meta, ['title','product_id','label_group','seller_id']))
+              .map(([k,v]) => kv(k, String(v))).join(' ')}</div>
+            <div><button class='btn ghost json-btn'>JSON</button></div>`
+          row.querySelector('.json-btn').addEventListener('click', () => navigator.clipboard.writeText(JSON.stringify(r, null, 2)).then(()=>showToast('Copied result JSON')))
+          resBox.appendChild(row)
+        })
+      }
+
+      const renderSearch = (j) => {
+        resBox.innerHTML = ''
+        if (!j.results || j.results.length === 0) {
+          resBox.innerHTML = '<div class="card"><p class="muted">No results found.</p></div>'
+          return
+        }
+        j.results.forEach(r => {
+          const meta = r.meta || {}
+          const row = el('div', 'result')
+          row.innerHTML = `
+            <img src="${imgSrc(r)}" class="thumb-sm" alt="thumb" onerror="this.style.display='none'"/>
+            <div class='score'>${kv('idx', r.idx)} ${kv('fused', Number(r.fused).toFixed(4))}</div>
+            <div class='kvs'>${kv('img', Number(r.image_score).toFixed(3))} ${kv('txt', Number(r.text_score).toFixed(3))} ${Object.entries(pick(meta, ['title','product_id','label_group','seller_id']))
+              .map(([k,v]) => kv(k, String(v))).join(' ')}</div>
+            <div><button class='btn ghost json-btn'>JSON</button></div>`
+          row.querySelector('.json-btn').addEventListener('click', () => navigator.clipboard.writeText(JSON.stringify(r, null, 2)).then(()=>showToast('Copied result JSON')))
+          resBox.appendChild(row)
+        })
+      }
+
+      // Forms
+      const fusedOneForm = document.getElementById('fusedOneForm')
+      fusedOneForm.addEventListener('submit', async (e) => {
+        e.preventDefault()
+        const title = document.getElementById('oneTitle').value
+        const file = document.getElementById('oneImage').files[0]
+        const topk = Number(document.getElementById('topkOne').value || 10)
+        const alpha = Number(document.getElementById('alphaOne').value)
+        const fd = new FormData()
+        if (title) fd.append('title', title)
+        if (file) fd.append('file', file)
+        fd.append('top_k', topk)
+        fd.append('alpha', alpha)
+        startLoading('Finding duplicates...')
+        try {
+          const resp = await fetch(API_BASE + '/dedup/fused', { method: 'POST', body: fd })
+          const j = await resp.json()
+          if (j.error) { 
+            resBox.innerHTML = '<div class="card"><b style="color: var(--err);">Error:</b> ' + j.error + '</div>'; 
+            return 
+          }
+          renderDupFused(j)
+        } catch (err) { 
+          resBox.innerHTML = '<div class="card"><b style="color: var(--err);">Fetch error:</b> ' + err + '</div>' 
+        }
+      })
+
+      const searchForm = document.getElementById('searchForm')
+      searchForm.addEventListener('submit', async (e) => {
+        e.preventDefault()
+        const title = document.getElementById('searchTitle').value
+        const file = document.getElementById('searchImage').files[0]
+        const topk = Number(document.getElementById('topkSearch').value || 10)
+        const alpha = Number(document.getElementById('alphaSearch').value)
+        const fd = new FormData()
+        if (title) fd.append('title', title)
+        if (file) fd.append('file', file)
+        fd.append('top_k', topk)
+        fd.append('alpha', alpha)
+        startLoading('Searching...')
+        try {
+          const resp = await fetch(API_BASE + '/search', { method: 'POST', body: fd })
+          const j = await resp.json()
+          if (j.error) { 
+            resBox.innerHTML = '<div class="card"><b style="color: var(--err);">Error:</b> ' + j.error + '</div>'; 
+            return 
+          }
+          renderSearch(j)
+        } catch (err) { 
+          resBox.innerHTML = '<div class="card"><b style="color: var(--err);">Fetch error:</b> ' + err + '</div>' 
+        }
+      })
+
+      // Fraud
+      const fraudTop = document.getElementById('fraudTop')
+      const fraudOne = document.getElementById('fraudOne')
+      const fraudInsights = document.getElementById('fraudInsights')
+      const fraudDupes = document.getElementById('fraudDupes')
+      
+      fraudTop.addEventListener('click', async () => {
+        startLoading('Computing anomalies...')
+        try {
+          const n = Number(document.getElementById('fraudTopN').value || 20)
+          const resp = await fetch(API_BASE + `/fraud/sellers/anomaly?n=${encodeURIComponent(n)}`)
+          const j = await resp.json()
+          if (j.error) { 
+            resBox.innerHTML = '<div class="card"><b style="color: var(--err);">Error:</b> ' + j.error + '</div>'; 
+            return 
+          }
+          resBox.innerHTML = ''
+          if (!j.results || j.results.length === 0) {
+            resBox.innerHTML = '<div class="card"><p class="muted">No anomalies found.</p></div>'
+            return
+          }
+          j.results.forEach(r => {
+            const row = el('div', 'result')
+            row.innerHTML = `
+              <div></div>
+              <div class='score'>${kv('seller', r.seller_id)}</div>
+              <div class='kvs'>${kv('score', Number(r.anomaly_score).toFixed(4))} ${kv('count', r.count)}</div>
+              <div></div>`
+            resBox.appendChild(row)
+          })
+        } catch (err) { 
+          resBox.innerHTML = '<div class="card"><b style="color: var(--err);">Fetch error:</b> ' + err + '</div>' 
+        }
+      })
+      
+      fraudInsights.addEventListener('click', async () => {
+        startLoading('Building insights...')
+        try {
+          const n = Number(document.getElementById('fraudTopN').value || 20)
+          const resp = await fetch(API_BASE + `/fraud/sellers/insights?n=${encodeURIComponent(n)}`)
+          const j = await resp.json()
+          if (j.error) { 
+            resBox.innerHTML = '<div class="card"><b style="color: var(--err);">Error:</b> ' + j.error + '</div>'; 
+            return 
+          }
+          resBox.innerHTML = ''
+          if (!j.results || j.results.length === 0) {
+            resBox.innerHTML = '<div class="card"><p class="muted">No insights found.</p></div>'
+            return
+          }
+          j.results.forEach(r => {
+            const row = el('div', 'result')
+            row.innerHTML = `
+              <div></div>
+              <div class='score'>${kv('seller', r.seller_id)}</div>
+              <div class='kvs'>${kv('risk', Number(r.risk_score).toFixed(3))} ${kv('count', r.count)} ${kv('mt', Number(r.mean_text_sim).toFixed(3))} ${kv('mi', Number(r.mean_image_sim).toFixed(3))} ${kv('entropy', Number(r.label_entropy).toFixed(2))} ${kv('uniq_title', Number(r.unique_title_ratio).toFixed(2))}</div>
+              <div></div>`
+            resBox.appendChild(row)
+          })
+        } catch (err) { 
+          resBox.innerHTML = '<div class="card"><b style="color: var(--err);">Fetch error:</b> ' + err + '</div>' 
+        }
+      })
+      
+      fraudOne.addEventListener('click', async () => {
+        const sid = document.getElementById('fraudSellerId').value
+        if (!sid.trim()) {
+          showToast('Please enter a seller ID')
+          return
+        }
+        startLoading('Checking seller...')
+        try {
+          const resp = await fetch(API_BASE + `/fraud/seller/${encodeURIComponent(sid)}`)
+          const j = await resp.json()
+          if (j.error) { 
+            resBox.innerHTML = '<div class="card"><b style="color: var(--err);">Error:</b> ' + j.error + '</div>'; 
+            return 
+          }
+          resBox.innerHTML = `<div class='result'><div></div><div class='score'>${kv('seller', j.seller_id)}</div><div class='kvs'>${kv('score', Number(j.anomaly_score).toFixed(4))} ${kv('count', j.count)}</div><div></div></div>`
+        } catch (err) { 
+          resBox.innerHTML = '<div class="card"><b style="color: var(--err);">Fetch error:</b> ' + err + '</div>' 
+        }
+      })
+      
+      fraudDupes.addEventListener('click', async () => {
+        const sid = document.getElementById('fraudSellerId').value
+        if (!sid.trim()) {
+          showToast('Please enter a seller ID')
+          return
+        }
+        const use = document.getElementById('dupeUse').value
+        const thr = Number(document.getElementById('dupeThresh').value || 0.8)
+        const top = Number(document.getElementById('dupeTop').value || 50)
+        startLoading('Finding duplicates...')
+        try {
+          const url = API_BASE + `/fraud/seller/${encodeURIComponent(sid)}/duplicates?use=${encodeURIComponent(use)}&threshold=${encodeURIComponent(thr)}&top=${encodeURIComponent(top)}`
+          const resp = await fetch(url)
+          const j = await resp.json()
+          if (j.error) { 
+            resBox.innerHTML = '<div class="card"><b style="color: var(--err);">Error:</b> ' + j.error + '</div>'; 
+            return 
+          }
+          resBox.innerHTML = ''
+          if (!j.results || j.results.length === 0) {
+            resBox.innerHTML = '<div class="card"><p class="muted">No duplicates found.</p></div>'
+            return
+          }
+          j.results.forEach(p => {
+            const row = el('div', 'result')
+            row.innerHTML = `
+              <img src="${p.a_url || (MEDIA_BASE && p.a_key ? MEDIA_BASE + '/' + p.a_key : API_BASE + '/image/' + p.a)}" class="thumb-sm" alt="thumb" onerror="this.style.display='none'"/>
+              <div class='kvs'>${kv('a', p.a)} ${kv('b', p.b)} ${kv('score', Number(p.score).toFixed(3))}</div>
+              <div class='kvs'>${p.a_meta ? kv('a_title', p.a_meta.title ?? '') : ''} ${p.b_meta ? kv('b_title', p.b_meta.title ?? '') : ''}</div>`
+            resBox.appendChild(row)
+          })
+        } catch (err) { 
+          resBox.innerHTML = '<div class="card"><b style="color: var(--err);">Fetch error:</b> ' + err + '</div>' 
+        }
+      })
+    </script>
+  </body>
+</html>
