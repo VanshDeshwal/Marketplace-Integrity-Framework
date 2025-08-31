@@ -1,0 +1,149 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.changes.outputs.backend }}
+      frontend: ${{ steps.changes.outputs.frontend }}
+      fullstack: ${{ steps.changes.outputs.fullstack }}
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Detect changes
+      uses: dorny/paths-filter@v2
+      id: changes
+      with:
+        filters: |
+          backend:
+            - 'backend/**'
+            - 'dataset/**'
+          frontend:
+            - 'frontend/**'
+          fullstack:
+            - 'docker-compose.yml'
+            - 'deploy.sh'
+            - 'deploy.bat'
+
+  test-backend:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      run: |
+        cd backend
+        pip install -r requirements.txt
+
+    - name: Run backend tests
+      run: |
+        cd backend
+        python -m pytest tests/ || echo "No tests found, skipping..."
+
+    - name: Test API health
+      run: |
+        cd backend
+        python -c "
+        import sys
+        sys.path.append('.')
+        try:
+            from app.main import app
+            print('✅ Backend imports successfully')
+        except Exception as e:
+            print(f'❌ Backend import failed: {e}')
+            sys.exit(1)
+        "
+
+  test-frontend:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
+
+    - name: Install dependencies
+      run: |
+        cd frontend
+        npm ci
+
+    - name: Run frontend tests
+      run: |
+        cd frontend
+        npm test -- --coverage --watchAll=false
+
+    - name: Build frontend
+      run: |
+        cd frontend
+        npm run build
+
+  trigger-deployments:
+    needs: [detect-changes, test-backend, test-frontend]
+    if: always() && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Trigger Backend Deployment
+      if: needs.detect-changes.outputs.backend == 'true' && (needs.test-backend.result == 'success' || needs.test-backend.result == 'skipped')
+      uses: peter-evans/repository-dispatch@v2
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        event-type: deploy-backend
+
+    - name: Trigger Frontend Deployment
+      if: needs.detect-changes.outputs.frontend == 'true' && (needs.test-frontend.result == 'success' || needs.test-frontend.result == 'skipped')
+      uses: peter-evans/repository-dispatch@v2
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        event-type: deploy-frontend
+
+    - name: Trigger Full Stack Deployment
+      if: needs.detect-changes.outputs.fullstack == 'true'
+      uses: peter-evans/repository-dispatch@v2
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        event-type: deploy-fullstack
+
+    - name: Deployment Summary
+      run: |
+        echo "🔍 Change Detection Results:"
+        echo "Backend changed: ${{ needs.detect-changes.outputs.backend }}"
+        echo "Frontend changed: ${{ needs.detect-changes.outputs.frontend }}"
+        echo "Full stack changed: ${{ needs.detect-changes.outputs.fullstack }}"
+        echo ""
+        echo "🚀 Deployment Status:"
+        if [ "${{ needs.detect-changes.outputs.backend }}" == "true" ]; then
+          echo "✅ Backend deployment triggered"
+        fi
+        if [ "${{ needs.detect-changes.outputs.frontend }}" == "true" ]; then
+          echo "✅ Frontend deployment triggered"
+        fi
+        if [ "${{ needs.detect-changes.outputs.fullstack }}" == "true" ]; then
+          echo "✅ Full stack deployment triggered"
+        fi

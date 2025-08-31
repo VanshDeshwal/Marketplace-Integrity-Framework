@@ -1,5 +1,5 @@
 from fastapi import FastAPI, UploadFile, File, Form
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import numpy as np
@@ -32,6 +32,16 @@ DATA_DIR = os.path.join(ROOT_DIR, 'data')
 ARTIFACT_DIR = os.path.join(DATA_DIR, 'siamese_artifacts')
 os.makedirs(DATA_DIR, exist_ok=True)
 DATASET_DIR = os.path.join(PROJECT_ROOT, 'dataset', 'shopee-product-matching')
+
+# Custom FileResponse with CORS headers
+class CORSFileResponse(FileResponse):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.headers.update({
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, OPTIONS",
+            "Access-Control-Allow-Headers": "*",
+        })
 
 # Lazy imports for optional libraries
 try:
@@ -332,8 +342,12 @@ def _norm(x: np.ndarray):
 
 
 def _image_base_url() -> str:
-    """Media base URL for images if configured via env MEDIA_BASE_URL, else empty string."""
-    return (os.environ.get('MEDIA_BASE_URL') or '').strip().rstrip('/')
+    """Media base URL for images if configured via env MEDIA_BASE_URL, else use local server."""
+    media_url = (os.environ.get('MEDIA_BASE_URL') or '').strip().rstrip('/')
+    if media_url:
+        return media_url
+    # Default to local server images endpoint
+    return 'http://localhost:8000/images'
 
 
 def _get_image_key(idx: int) -> Optional[str]:
@@ -776,4 +790,104 @@ def get_image(idx: int):
         return {"error": "image not found"}
     import mimetypes
     mt = mimetypes.guess_type(path)[0] or 'image/jpeg'
-    return FileResponse(path, media_type=mt)
+    return CORSFileResponse(path, media_type=mt)
+
+
+@app.get('/storage-info')
+def get_storage_info():
+    """Get information about the storage backend being used."""
+    # Check if we're using Azure Blob Storage
+    azure_connection_string = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
+    azure_blob_url = os.getenv('AZURE_BLOB_URL')
+    
+    if azure_connection_string and azure_blob_url:
+        return {
+            "storage_type": "azure_blob",
+            "blob_url": azure_blob_url
+        }
+    else:
+        return {
+            "storage_type": "local",
+            "blob_url": None
+        }
+
+
+@app.get('/random-images')
+def get_random_images(count: int = 6):
+    """Get random sample images for testing duplicate detection."""
+    import random
+    import pandas as pd
+    
+    try:
+        # Try to load metadata
+        meta_path = os.path.join(ARTIFACT_DIR, 'meta.csv')
+        if os.path.exists(meta_path):
+            meta_df = pd.read_csv(meta_path)
+            
+            # Get random sample
+            sample_size = min(count, len(meta_df))
+            random_indices = random.sample(range(len(meta_df)), sample_size)
+            
+            images = []
+            for idx in random_indices:
+                row = meta_df.iloc[idx]
+                image_key = _get_image_key(idx)
+                image_url = _image_url_for_key(image_key)
+                
+                images.append({
+                    "id": str(idx),
+                    "name": row.get('title', f'Product {idx}') if 'title' in row else f'Product {idx}',
+                    "path": image_key,
+                    "url": image_url,
+                    "metadata": row.to_dict() if hasattr(row, 'to_dict') else {}
+                })
+            
+            return {"images": images}
+        else:
+            # Fallback: return sample images from dataset directory
+            train_images_dir = os.path.join(DATASET_DIR, 'train_images')
+            if os.path.exists(train_images_dir):
+                all_images = [f for f in os.listdir(train_images_dir) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
+                if all_images:
+                    sample_images = random.sample(all_images, min(count, len(all_images)))
+                    
+                    images = []
+                    for i, img_file in enumerate(sample_images):
+                        images.append({
+                            "id": str(i),
+                            "name": f"Sample Product {i+1}",
+                            "path": f"train_images/{img_file}",
+                            "url": f"/images/train_images/{img_file}",
+                            "metadata": {}
+                        })
+                    
+                    return {"images": images}
+            
+            # If no images found, return empty
+            return {"images": []}
+            
+    except Exception as e:
+        print(f"Error getting random images: {e}")
+        return {"images": []}
+
+
+@app.get('/images/{image_path:path}')
+def serve_image(image_path: str):
+    """Serve images from the dataset directory."""
+    # Security: prevent directory traversal
+    image_path = image_path.replace('..', '').replace('//', '/')
+    
+    # Try different possible paths
+    possible_paths = [
+        os.path.join(DATASET_DIR, image_path),
+        os.path.join(DATASET_DIR, 'train_images', image_path.split('/')[-1]),
+        os.path.join(DATASET_DIR, 'test_images', image_path.split('/')[-1])
+    ]
+    
+    for path in possible_paths:
+        if os.path.exists(path):
+            import mimetypes
+            mt = mimetypes.guess_type(path)[0] or 'image/jpeg'
+            return CORSFileResponse(path, media_type=mt)
+    
+    return {"error": "image not found"}

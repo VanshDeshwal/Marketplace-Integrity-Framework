@@ -1,0 +1,89 @@
+name: Deploy Full Stack
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'docker-compose.yml'
+      - 'deploy.sh'
+      - 'deploy.bat'
+      - '.github/workflows/deploy-fullstack.yml'
+  repository_dispatch:
+    types: [deploy-fullstack]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  BACKEND_IMAGE: ${{ github.repository }}-backend
+  FRONTEND_IMAGE: ${{ github.repository }}-frontend
+
+jobs:
+  build-images:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Build and push backend image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./backend
+        file: ./backend/Dockerfile.prod
+        push: true
+        tags: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:latest
+
+    - name: Build and push frontend image (if Dockerfile exists)
+      continue-on-error: true
+      uses: docker/build-push-action@v5
+      with:
+        context: ./frontend
+        file: ./frontend/Dockerfile
+        push: true
+        tags: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:latest
+
+  deploy-stack:
+    needs: build-images
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    # Example deployment to a VPS or cloud instance
+    # You would need to set up SSH keys and server details
+    # - name: Deploy to Production Server
+    #   uses: appleboy/ssh-action@v1.0.0
+    #   with:
+    #     host: ${{ secrets.PROD_HOST }}
+    #     username: ${{ secrets.PROD_USER }}
+    #     key: ${{ secrets.PROD_SSH_KEY }}
+    #     script: |
+    #       cd /path/to/your/app
+    #       git pull origin main
+    #       docker-compose pull
+    #       docker-compose up -d
+    #       docker system prune -f
+
+    # Example for Docker Swarm deployment
+    # - name: Deploy to Docker Swarm
+    #   run: |
+    #     echo "Deploy to production swarm cluster"
+    #     # Your swarm deployment commands here
+
+    - name: Deployment Summary
+      run: |
+        echo "🚀 Full stack deployment initiated!"
+        echo "📦 Backend: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE }}:latest"
+        echo "📦 Frontend: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE }}:latest"
+        echo "🔧 Configure your production deployment in this workflow"

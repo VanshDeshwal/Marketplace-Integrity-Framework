@@ -1,0 +1,38 @@
+# Backend specific ignores
+# AI/ML artifacts and models
+data/
+*.pkl
+*.pickle
+*.joblib
+*.h5
+*.hdf5
+*.pt
+*.pth
+*.npy
+*.npz
+*.index
+*.faiss
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/

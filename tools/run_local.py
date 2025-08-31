@@ -8,8 +8,7 @@ from pathlib import Path
 
 # One-command local runner for:
 # - Backend API (FastAPI) on http://localhost:8000
-# - Media server (images) on http://localhost:9000
-# - Frontend static site on http://localhost:5500 (serves frontend/)
+# - Frontend React app on http://localhost:3000
 #
 # Usage (PowerShell):
 #   python tools/run_local.py
@@ -18,13 +17,8 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 BACKEND_APP = 'app.main:app'
-MEDIA_APP = 'media_server.server:app'
 BACKEND_PORT = os.environ.get('BACKEND_PORT', '8000')
-MEDIA_PORT = os.environ.get('MEDIA_PORT', '9000')
-FRONTEND_PORT = os.environ.get('FRONTEND_PORT', '5500')
-
-# Ensure MEDIA_BASE_URL so backend returns image_url fields
-os.environ.setdefault('MEDIA_BASE_URL', f'http://localhost:{MEDIA_PORT}')
+FRONTEND_PORT = os.environ.get('FRONTEND_PORT', '3000')
 
 PYEXE = sys.executable or 'python'
 
@@ -59,8 +53,8 @@ def tail(name, proc):
 
 def main():
     # Pre-flight checks
-    if not (REPO / 'frontend' / 'index.html').exists():
-        print("[warn] frontend/index.html not found. Serving folder anyway.")
+    if not (REPO / 'frontend' / 'package.json').exists():
+        print("[warn] frontend/package.json not found. React app may not start.")
     if not (REPO / 'backend' / 'app' / 'main.py').exists():
         print("[error] backend app not found.")
         sys.exit(1)
@@ -69,26 +63,19 @@ def main():
     backend_cmd = [PYEXE, '-m', 'uvicorn', BACKEND_APP, '--reload', '--port', BACKEND_PORT]
     p_backend = run('backend', backend_cmd, cwd=REPO / 'backend')
 
-    # Media server
-    media_cmd = [PYEXE, '-m', 'uvicorn', MEDIA_APP, '--reload', '--port', MEDIA_PORT]
-    p_media = run('media', media_cmd, cwd=REPO)
-
-    # Frontend static server
-    # Prefer Python http.server; fallback to Node npx serve if desired
-    if shutil.which(PYEXE):
-        front_cmd = [PYEXE, '-m', 'http.server', FRONTEND_PORT]
+    # Frontend React app
+    if shutil.which('npm'):
+        front_cmd = ['npm', 'start']
         p_front = run('frontend', front_cmd, cwd=REPO / 'frontend')
     else:
-        # Should not happen; Python is required
-        print('[error] Python not found for frontend server')
+        print('[error] npm not found. Please install Node.js to run the React frontend.')
         cleanup()
         sys.exit(1)
 
     print('\nAll services launching...')
     print(f"  API     → http://localhost:{BACKEND_PORT} (docs at /docs)")
-    print(f"  Media   → http://localhost:{MEDIA_PORT}")
     print(f"  Frontend→ http://localhost:{FRONTEND_PORT}")
-    print('\nTip: The backend is configured with MEDIA_BASE_URL, so results include image_url pointing to the media server.')
+    print('\nNote: The backend serves images directly at /images/ endpoint with CORS enabled.')
 
     # Monitor processes & report exit codes
     try:
