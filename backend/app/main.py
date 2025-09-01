@@ -854,14 +854,13 @@ def get_image(idx: int):
 @app.get('/storage-info')
 def get_storage_info():
     """Get information about the storage backend being used."""
-    # Check if we're using Azure Blob Storage
-    azure_connection_string = os.getenv('AZURE_STORAGE_CONNECTION_STRING')
-    azure_blob_url = os.getenv('AZURE_BLOB_URL')
+    # Check if we're using Azure Blob Storage via MEDIA_BASE_URL
+    media_base_url = _image_base_url()
     
-    if azure_connection_string and azure_blob_url:
+    if media_base_url and not media_base_url.startswith('http://localhost'):
         return {
             "storage_type": "azure_blob",
-            "blob_url": azure_blob_url
+            "blob_url": media_base_url
         }
     else:
         return {
