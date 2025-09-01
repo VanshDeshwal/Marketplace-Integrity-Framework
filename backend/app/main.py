@@ -1,4 +1,4 @@
-from fastapi import FastAPI, UploadFile, File, Form
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.responses import FileResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -75,14 +75,13 @@ except Exception:
     F = None
     Image = None
 
-try:
-    import pandas as pd
-    import pickle
-    from sklearn.ensemble import IsolationForest
-except Exception:
-    pd = None
-    pickle = None
-    IsolationForest = None
+# Data/ML essentials (required)
+import pandas as pd
+import pickle
+from sklearn.ensemble import IsolationForest
+
+# Log pandas presence/version early
+print(f"[startup] pandas loaded: version={getattr(pd, '__version__', 'unknown')}")
 
 
 class EmbedRequest(BaseModel):
@@ -704,9 +703,13 @@ def get_random_samples(count: int = 12):
     Response: { results: [ { idx: int, title: str|null } ] }
     """
     meta = ART.get('meta')
-    if meta is None:
-        return {'error': 'metadata unavailable'}
     try:
+        if meta is None:
+            meta_path = os.path.join(ARTIFACT_DIR, 'meta.csv')
+            if os.path.exists(meta_path):
+                meta = pd.read_csv(meta_path)
+            else:
+                return {'results': []}
         n = len(meta)
         if n == 0:
             return {'results': []}
@@ -883,58 +886,32 @@ def get_storage_info():
 def get_random_images(count: int = 6):
     """Get random sample images for testing duplicate detection."""
     import random
-    
-    if pd is None:
-        raise HTTPException(status_code=500, detail="Pandas not available")
-    
     try:
-        # Try to load metadata
+        # Load metadata
         meta_path = os.path.join(ARTIFACT_DIR, 'meta.csv')
-        if os.path.exists(meta_path):
-            meta_df = pd.read_csv(meta_path)
-            
-            # Get random sample
-            sample_size = min(count, len(meta_df))
-            random_indices = random.sample(range(len(meta_df)), sample_size)
-            
-            images = []
-            for idx in random_indices:
-                row = meta_df.iloc[idx]
-                image_key = _get_image_key(idx)
-                image_url = _image_url_for_key(image_key)
-                
-                images.append({
-                    "id": str(idx),
-                    "name": row.get('title', f'Product {idx}') if 'title' in row else f'Product {idx}',
-                    "path": image_key,
-                    "url": image_url,
-                    "metadata": row.to_dict() if hasattr(row, 'to_dict') else {}
-                })
-            
-            return {"images": images}
-        else:
-            # Fallback: return sample images from dataset directory
-            train_images_dir = os.path.join(DATASET_DIR, 'train_images')
-            if os.path.exists(train_images_dir):
-                all_images = [f for f in os.listdir(train_images_dir) if f.lower().endswith(('.jpg', '.jpeg', '.png'))]
-                if all_images:
-                    sample_images = random.sample(all_images, min(count, len(all_images)))
-                    
-                    images = []
-                    for i, img_file in enumerate(sample_images):
-                        images.append({
-                            "id": str(i),
-                            "name": f"Sample Product {i+1}",
-                            "path": f"train_images/{img_file}",
-                            "url": f"/images/train_images/{img_file}",
-                            "metadata": {}
-                        })
-                    
-                    return {"images": images}
-            
-            # If no images found, return empty
+        if not os.path.exists(meta_path):
             return {"images": []}
-            
+        meta_df = pd.read_csv(meta_path)
+        if len(meta_df) == 0:
+            return {"images": []}
+
+        sample_size = max(1, min(int(count), len(meta_df)))
+        random_indices = random.sample(range(len(meta_df)), sample_size)
+
+        images = []
+        for idx in random_indices:
+            row = meta_df.iloc[idx]
+            image_key = _get_image_key(idx)
+            image_url = _image_url_for_key(image_key)
+            images.append({
+                "id": str(idx),
+                "name": (row['title'] if 'title' in row else f'Product {idx}') if hasattr(row, '__getitem__') else f'Product {idx}',
+                "path": image_key,
+                "url": image_url,
+                "metadata": row.to_dict() if hasattr(row, 'to_dict') else {}
+            })
+
+        return {"images": images}
     except Exception as e:
         print(f"Error getting random images: {e}")
         return {"images": []}
