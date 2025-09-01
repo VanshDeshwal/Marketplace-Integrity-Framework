@@ -1,5 +1,6 @@
 import React from 'react';
 import { Activity, Moon, Sun, Shield, ExternalLink } from 'lucide-react';
+import { getApiConfig } from '../utils/api';
 
 const Navbar = ({ 
   activeTab, 
@@ -9,6 +10,8 @@ const Navbar = ({
   toggleTheme,
   onApiStatusClick 
 }) => {
+  const { API_BASE } = getApiConfig();
+  
   const tabs = [
     { id: 'duplicate', label: 'Duplicate Detection', icon: '🔍' },
     { id: 'semantic', label: 'Semantic Search', icon: '🔗' },
@@ -45,7 +48,7 @@ const Navbar = ({
         <div className="navbar-controls">
           {/* API Status */}
           <a 
-            href={process.env.REACT_APP_API_URL ? `${process.env.REACT_APP_API_URL}/docs` : 'http://localhost:8000/docs'}
+            href={`${API_BASE}/docs`}
             target="_blank"
             rel="noopener noreferrer"
             className="api-status-link"
