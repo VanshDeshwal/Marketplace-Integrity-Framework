@@ -45,39 +45,12 @@ jobs:
           org.opencontainers.image.source=${{ github.event.repository.html_url }}
           org.opencontainers.image.revision=${{ github.sha }}
 
-    - name: Azure Login
-      uses: azure/login@v1
+    - name: Deploy to Azure Web App (Container)
+      uses: azure/webapps-deploy@v3
       with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-    - name: Update Container Image
-      run: |
-        az webapp config container set \
-          --name ${{ env.AZURE_WEBAPP_NAME }} \
-          --resource-group marketplace-integrity-rg \
-          --docker-custom-image-name ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest \
-          --docker-registry-server-url https://${{ env.REGISTRY }}
-
-    - name: Restart Web App
-      run: |
-        az webapp restart \
-          --name ${{ env.AZURE_WEBAPP_NAME }} \
-          --resource-group marketplace-integrity-rg
-
-    - name: Configure Azure App Settings
-      run: |
-        az webapp config appsettings set \
-          --name ${{ env.AZURE_WEBAPP_NAME }} \
-          --resource-group marketplace-integrity-rg \
-          --settings \
-            CORS_ORIGINS="https://marketplace.vanshdeshwal.dev" \
-            LOG_LEVEL="INFO" \
-            DEVELOPMENT="false" \
-            AZURE_STORAGE_CONNECTION_STRING="${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}" \
-            WEBSITES_PORT="8000" \
-            ENABLE_ORYX_BUILD="false" \
-            SCM_DO_BUILD_DURING_DEPLOYMENT="false" \
-            WEBSITES_ENABLE_APP_SERVICE_STORAGE="false"
+        app-name: ${{ env.AZURE_WEBAPP_NAME }}
+        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
     - name: Health Check
       run: |
