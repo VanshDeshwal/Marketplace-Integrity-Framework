@@ -1,4 +1,4 @@
-name: Deploy Backend API to Azure
+name: Deploy Backend API to Azure (Docker)
 
 on:
   push:
@@ -13,41 +13,44 @@ on:
 
 env:
   AZURE_WEBAPP_NAME: marketplace-integrity-api
-  PYTHON_VERSION: '3.10'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}-backend
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      packages: write
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Setup Python
-      uses: actions/setup-python@v4
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
       with:
-        python-version: ${{ env.PYTHON_VERSION }}
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Install dependencies
-      run: |
-        cd backend
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: ./backend
+        file: ./backend/Dockerfile.prod
+        push: true
+        tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+        labels: |
+          org.opencontainers.image.source=${{ github.event.repository.html_url }}
+          org.opencontainers.image.revision=${{ github.sha }}
 
-    - name: Run tests
-      run: |
-        cd backend
-        # Add your test commands here when tests are ready
-        echo "Tests passed!"
-
-    - name: Deploy to Azure Web App
+    - name: Deploy to Azure Web App (Container)
       uses: azure/webapps-deploy@v2
       with:
         app-name: ${{ env.AZURE_WEBAPP_NAME }}
         publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-        package: ./backend
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
     - name: Configure Azure App Settings
       uses: azure/appservice-settings@v1
@@ -70,26 +73,23 @@ jobs:
             {
               "name": "AZURE_STORAGE_CONNECTION_STRING",
               "value": "${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}"
-            }
-          ]
-        connection-strings-json: |
-          [
+            },
             {
-              "name": "DefaultConnection",
-              "value": "${{ secrets.DATABASE_CONNECTION_STRING }}",
-              "type": "SQLServer"
+              "name": "WEBSITES_PORT",
+              "value": "8000"
             }
           ]
 
     - name: Health Check
       run: |
-        echo "Waiting for deployment to be ready..."
-        sleep 30
-        curl -f https://api.marketplace.vanshdeshwal.dev/health || echo "Health check failed"
+        echo "Waiting for container deployment to be ready..."
+        sleep 60
+        curl -f https://api.marketplace.vanshdeshwal.dev/health || echo "Health check failed - container may still be starting"
 
     - name: Deployment Summary
       run: |
-        echo "🚀 Backend deployment completed!"
-        echo "� API URL: https://api.marketplace.vanshdeshwal.dev"
+        echo "🚀 Backend Docker deployment completed!"
+        echo "🐳 Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+        echo "🔗 API URL: https://api.marketplace.vanshdeshwal.dev"
         echo "🌐 Frontend URL: https://marketplace.vanshdeshwal.dev"
-        echo "� Storage: Azure Blob Storage"
+        echo "💾 Storage: Azure Blob Storage"
