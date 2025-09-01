@@ -75,9 +75,14 @@ except Exception:
     F = None
     Image = None
 
-import pandas as pd
-import pickle
-from sklearn.ensemble import IsolationForest
+try:
+    import pandas as pd
+    import pickle
+    from sklearn.ensemble import IsolationForest
+except Exception:
+    pd = None
+    pickle = None
+    IsolationForest = None
 
 
 class EmbedRequest(BaseModel):
@@ -878,7 +883,9 @@ def get_storage_info():
 def get_random_images(count: int = 6):
     """Get random sample images for testing duplicate detection."""
     import random
-    import pandas as pd
+    
+    if pd is None:
+        raise HTTPException(status_code=500, detail="Pandas not available")
     
     try:
         # Try to load metadata
