@@ -16,6 +16,7 @@ env:
   AZURE_RESOURCE_GROUP: marketplace-integrity-rg
   REGISTRY: ghcr.io
   IMAGE_NAME: vanshdeshwal/marketplace-integrity-framework-backend
+  IMAGE_SHA_TAG: ${{ github.sha }}
 
 jobs:
   deploy:
@@ -23,6 +24,10 @@ jobs:
     permissions:
       contents: read
       packages: write
+    env:
+      GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+      GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+      AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
 
     steps:
     - name: Checkout repository
@@ -41,7 +46,9 @@ jobs:
         context: ./backend
         file: ./backend/Dockerfile.prod
         push: true
-        tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+        tags: |
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_SHA_TAG }}
         labels: |
           org.opencontainers.image.source=${{ github.event.repository.html_url }}
           org.opencontainers.image.revision=${{ github.sha }}
@@ -51,25 +58,37 @@ jobs:
       with:
         app-name: ${{ env.AZURE_WEBAPP_NAME }}
         publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
-        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_SHA_TAG }}
+
+    # Optionally configure GHCR credentials on the Web App if your image is private
+    - name: Configure GHCR registry credentials (optional)
+      if: ${{ env.REGISTRY == 'ghcr.io' && env.GHCR_USERNAME != '' && env.GHCR_TOKEN != '' }}
+      run: |
+        az webapp config appsettings set \
+          --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
+          --name "${{ env.AZURE_WEBAPP_NAME }}" \
+          --settings \
+            DOCKER_REGISTRY_SERVER_URL=https://ghcr.io \
+            DOCKER_REGISTRY_SERVER_USERNAME=${{ env.GHCR_USERNAME }} \
+            DOCKER_REGISTRY_SERVER_PASSWORD=${{ env.GHCR_TOKEN }}
 
     # Fallback deployment using Azure CLI with publish profile login.
     # This explicitly sets the Linux container image and applies critical app settings.
-    - name: Azure Login (Publish Profile)
-      if: failure()
+    - name: Azure Login (Service Principal)
+      if: ${{ failure() && env.AZURE_CREDENTIALS != '' }}
       uses: azure/login@v1
       with:
-        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+        creds: ${{ env.AZURE_CREDENTIALS }}
 
     - name: Configure container image via Azure CLI (fallback)
-      if: failure()
+      if: ${{ failure() && env.AZURE_CREDENTIALS != '' }}
       run: |
         set -e
-        echo "Setting linuxFxVersion to DOCKER|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+        echo "Setting linuxFxVersion to DOCKER|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_SHA_TAG }}"
         az webapp config set \
           --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
           --name "${{ env.AZURE_WEBAPP_NAME }}" \
-          --linux-fx-version "DOCKER|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+          --linux-fx-version "DOCKER|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_SHA_TAG }}"
 
         echo "Applying essential app settings (port, healthcheck, startup time, disable Oryx)"
         az webapp config appsettings set \
@@ -88,7 +107,7 @@ jobs:
           --name "${{ env.AZURE_WEBAPP_NAME }}"
 
     - name: Verify Azure config (fallback)
-      if: always()
+      if: ${{ failure() && env.AZURE_CREDENTIALS != '' }}
       run: |
         echo "Current linuxFxVersion and healthcheck path:"
         az webapp config show \
@@ -99,8 +118,19 @@ jobs:
     - name: Health Check
       run: |
         echo "Waiting for container deployment to be ready..."
-        sleep 90
-        curl -f https://api.marketplace.vanshdeshwal.dev/health || echo "Health check failed - container may still be starting"
+        ATTEMPTS=20
+        SLEEP=15
+        URL="https://api.marketplace.vanshdeshwal.dev/health"
+        for i in $(seq 1 $ATTEMPTS); do
+          echo "Attempt $i/$ATTEMPTS: GET $URL"
+          if curl -sf "$URL" > /dev/null; then
+            echo "✅ Health check passed"
+            exit 0
+          fi
+          sleep $SLEEP
+        done
+        echo "❌ Health check failed after $((ATTEMPTS*SLEEP))s"
+        exit 1
 
     - name: Deployment Summary
       run: |
