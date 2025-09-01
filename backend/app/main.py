@@ -360,6 +360,12 @@ def health():
         'status': 'ok',
         'environment': 'production',
         'healthcheck_path': '/health',
+        'runtime': {
+            'pandas_version': getattr(pd, '__version__', 'unknown'),
+            'artifact_dir': ARTIFACT_DIR,
+            'artifact_dir_exists': os.path.exists(ARTIFACT_DIR),
+            'meta_csv_exists': os.path.exists(os.path.join(ARTIFACT_DIR, 'meta.csv')),
+        },
         'ml_dependencies': {
             'sentence_transformers': SentenceTransformer is not None,
             'torch': torch is not None,
