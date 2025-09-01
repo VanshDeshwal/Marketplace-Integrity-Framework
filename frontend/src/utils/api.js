@@ -7,9 +7,11 @@ export const getApiConfig = () => {
     ? 'http://localhost:8000' 
     : 'https://api.marketplace.vanshdeshwal.dev';
     
+  // Prefer backend-reported blob base when hosted; fall back to known blob container
+  const FALLBACK_BLOB = 'https://marketplacestoragevd.blob.core.windows.net/catalog';
   const MEDIA_BASE = IS_LOCAL 
     ? (localStorage.getItem('mediaBase') || '') 
-    : 'https://marketplacestoragevd.blob.core.windows.net/catalog';
+    : (window.__MEDIA_BASE__ || FALLBACK_BLOB);
   
   return { API_BASE, MEDIA_BASE, IS_LOCAL };
 };

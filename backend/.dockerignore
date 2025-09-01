@@ -43,7 +43,6 @@ Thumbs.db
 data/siamese_artifacts/*.npy
 data/siamese_artifacts/*.index
 data/siamese_artifacts/*.pkl
-data/siamese_artifacts/meta.csv
 
 # Environment files
 .env

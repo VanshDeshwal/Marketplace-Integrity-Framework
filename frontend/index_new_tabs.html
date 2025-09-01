@@ -765,7 +765,17 @@
       const IS_LOCAL = isLocalHost || isFile
       envLabel.textContent = IS_LOCAL ? 'local' : 'hosted'
       const API_BASE = IS_LOCAL ? 'http://localhost:8000' : 'https://api.marketplace.vanshdeshwal.dev'
-      const MEDIA_BASE = IS_LOCAL ? (localStorage.getItem('mediaBase') || '') : 'https://marketplacestoragevd.blob.core.windows.net/catalog'
+      const FALLBACK_BLOB = 'https://marketplacestoragevd.blob.core.windows.net/catalog'
+      let MEDIA_BASE = IS_LOCAL ? (localStorage.getItem('mediaBase') || '') : FALLBACK_BLOB
+      if (!IS_LOCAL) {
+        fetch(API_BASE + '/storage-info', { cache:'no-store' }).then(r=>r.json()).then(j=>{
+          if (j && j.storage_type === 'azure_blob' && j.blob_url) {
+            MEDIA_BASE = j.blob_url
+            window.__MEDIA_BASE__ = MEDIA_BASE
+          }
+        }).catch(()=>{})
+        window.__MEDIA_BASE__ = MEDIA_BASE
+      }
 
       const ping = async () => {
         try {
@@ -829,8 +839,8 @@
       if (alphaSearch) alphaSearch.addEventListener('input', () => alphaSearchVal.textContent = Number(alphaSearch.value).toFixed(2))
 
       const imgSrc = (r) => {
-        // Prefer direct image_url from backend if present (points to blob in prod)
-        if (r.image_url) return r.image_url
+        // Prefer direct image_url from backend if present and not localhost
+        if (r.image_url && !(r.image_url || '').includes('localhost')) return r.image_url
         // Else, try media base + key
         if (MEDIA_BASE && r.image_key) return `${MEDIA_BASE}/${r.image_key}`
         // Fallback: backend image endpoint (dev only)
