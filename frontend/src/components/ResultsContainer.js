@@ -15,10 +15,10 @@ const ResultsContainer = ({ results, activeTab }) => {
   const renderDuplicateResults = () => (
     <div className="results-grid">
       {results.map((result, index) => {
-        // Handle the API response format: { score, meta: { title, posting_id }, image_url }
-        const title = result.meta?.title || result.title || 'Untitled Product';
-        const postingId = result.meta?.posting_id || result.posting_id;
-        const imageUrl = result.image_url || result.image_path || result.image;
+  // Handle the API response format: { score, meta: { title, posting_id }, image_url, image_key }
+  const title = result.meta?.title || result.title || 'Untitled Product';
+  const postingId = result.meta?.posting_id || result.posting_id;
+  const imageUrl = imageService.getImageUrl(result.image_key || result.image_path || result.image_url || result.image);
         const similarity = result.score || result.similarity || 0;
         
         return (
