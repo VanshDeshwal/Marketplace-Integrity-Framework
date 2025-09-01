@@ -1,0 +1,48 @@
+# Ultra-optimized Docker build for production
+FROM python:3.10-slim as builder
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    git \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Create and activate virtual environment
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Copy and install requirements with CPU-only PyTorch
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir \
+    torch==2.6.0+cpu torchvision==0.17.0+cpu torchaudio==2.6.0+cpu \
+    --extra-index-url https://download.pytorch.org/whl/cpu && \
+    pip install --no-cache-dir -r requirements.txt && \
+    find /opt/venv -name "*.pyc" -delete && \
+    find /opt/venv -name "__pycache__" -type d -exec rm -rf {} + || true
+
+# Ultra-minimal production stage using distroless
+FROM gcr.io/distroless/python3-debian12:latest as production
+
+# Copy virtual environment from builder stage
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+ENV PYTHONPATH="/opt/venv/lib/python3.10/site-packages"
+
+# Set working directory
+WORKDIR /app
+
+# Copy only necessary application files
+COPY app/ ./app/
+COPY *.py ./
+
+# Create data directory
+RUN mkdir -p data/siamese_artifacts
+
+# Expose port
+EXPOSE 8000
+
+# Run the application (distroless doesn't have shell, so direct command)
+ENTRYPOINT ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]

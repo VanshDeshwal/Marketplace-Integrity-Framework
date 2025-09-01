@@ -1,4 +1,7 @@
 # Ultra-optimized production Dockerfile
+# Size target: ~1.5-2GB (down from 6GB)
+
+# Build stage
 FROM python:3.10-slim as builder
 
 # Install only essential build dependencies
@@ -28,9 +31,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Clean up pip cache and compiled Python files
 RUN pip cache purge && \
     find /opt/venv -name "*.pyc" -delete && \
-    find /opt/venv -name "__pycache__" -type d -exec rm -rf {} + || true
+    find /opt/venv -name "__pycache__" -type d -exec rm -rf {} + || true && \
+    find /opt/venv -name "*.pyo" -delete
 
-# Production stage
+# Production stage - minimal runtime
 FROM python:3.10-slim as production
 
 # Install only runtime essentials
@@ -72,5 +76,6 @@ CMD ["uvicorn", "app.main:app", \
      "--host", "0.0.0.0", \
      "--port", "8000", \
      "--workers", "2", \
+     "--worker-class", "uvicorn.workers.UvicornWorker", \
      "--access-log", \
      "--log-level", "info"]

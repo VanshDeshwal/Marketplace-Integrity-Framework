@@ -1,4 +1,4 @@
-# Dockerignore file for FastAPI backend
+# Dockerignore file for FastAPI backend - Ultra optimized
 __pycache__/
 *.pyc
 *.pyo
@@ -25,6 +25,9 @@ coverage.xml
 .idea/
 *.swp
 *.swo
+README.md
+docs/
+*.md
 
 # OS files
 .DS_Store
@@ -39,8 +42,51 @@ Thumbs.db
 ../dataset/
 data/siamese_artifacts/*.npy
 data/siamese_artifacts/*.index
+data/siamese_artifacts/*.pkl
+data/siamese_artifacts/meta.csv
 
 # Environment files
 .env
 .env.local
 .env.*.local
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Testing
+tests/
+test_*.py
+*_test.py
+
+# Documentation
+docs/
+*.rst
+
+# Alternative requirements files
+requirements-*.txt
+!requirements.txt
+
+# Docker files
+Dockerfile*
+docker-compose*.yml
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Jupyter notebooks
+*.ipynb
+.ipynb_checkpoints/
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env/
