@@ -856,16 +856,21 @@ def get_storage_info():
     """Get information about the storage backend being used."""
     # Check if we're using Azure Blob Storage via MEDIA_BASE_URL
     media_base_url = _image_base_url()
+    raw_env_var = os.environ.get('MEDIA_BASE_URL', 'NOT_SET')
     
     if media_base_url and not media_base_url.startswith('http://localhost'):
         return {
             "storage_type": "azure_blob",
-            "blob_url": media_base_url
+            "blob_url": media_base_url,
+            "debug_env_var": raw_env_var,
+            "debug_processed_url": media_base_url
         }
     else:
         return {
             "storage_type": "local",
-            "blob_url": None
+            "blob_url": None,
+            "debug_env_var": raw_env_var,
+            "debug_processed_url": media_base_url
         }
 
 
