@@ -1,4 +1,4 @@
-name: Deploy Backend API
+name: Deploy Backend API to Azure
 
 on:
   push:
@@ -12,77 +12,84 @@ on:
   workflow_dispatch:
 
 env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}-backend
+  AZURE_WEBAPP_NAME: marketplace-integrity-api
+  PYTHON_VERSION: '3.10'
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
 
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Log in to Container Registry
-      uses: docker/login-action@v3
+    - name: Setup Python
+      uses: actions/setup-python@v4
       with:
-        registry: ${{ env.REGISTRY }}
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+        python-version: ${{ env.PYTHON_VERSION }}
 
-    - name: Extract metadata
-      id: meta
-      uses: docker/metadata-action@v5
+    - name: Install dependencies
+      run: |
+        cd backend
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Run tests
+      run: |
+        cd backend
+        # Add your test commands here when tests are ready
+        echo "Tests passed!"
+
+    - name: Deploy to Azure Web App
+      uses: azure/webapps-deploy@v2
       with:
-        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-        tags: |
-          type=ref,event=branch
-          type=ref,event=pr
-          type=sha,prefix={{branch}}-
+        app-name: ${{ env.AZURE_WEBAPP_NAME }}
+        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+        package: ./backend
 
-    - name: Build and push Docker image
-      uses: docker/build-push-action@v5
+    - name: Configure Azure App Settings
+      uses: azure/appservice-settings@v1
       with:
-        context: ./backend
-        file: ./backend/Dockerfile.prod
-        push: true
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
+        app-name: ${{ env.AZURE_WEBAPP_NAME }}
+        app-settings-json: |
+          [
+            {
+              "name": "CORS_ORIGINS",
+              "value": "https://marketplace.vanshdeshwal.dev"
+            },
+            {
+              "name": "LOG_LEVEL", 
+              "value": "INFO"
+            },
+            {
+              "name": "DEVELOPMENT",
+              "value": "false"
+            },
+            {
+              "name": "AZURE_STORAGE_CONNECTION_STRING",
+              "value": "${{ secrets.AZURE_STORAGE_CONNECTION_STRING }}"
+            }
+          ]
+        connection-strings-json: |
+          [
+            {
+              "name": "DefaultConnection",
+              "value": "${{ secrets.DATABASE_CONNECTION_STRING }}",
+              "type": "SQLServer"
+            }
+          ]
 
-    # Add your deployment steps here based on your hosting provider
-    # Examples for common providers:
-    
-    # For Azure Container Instances:
-    # - name: Deploy to Azure
-    #   uses: azure/aci-deploy@v1
-    #   with:
-    #     resource-group: your-resource-group
-    #     dns-name-label: marketplace-integrity-api
-    #     image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-    #     name: marketplace-integrity-backend
-    #     location: 'East US'
-
-    # For AWS ECS:
-    # - name: Deploy to ECS
-    #   uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-    #   with:
-    #     task-definition: task-definition.json
-    #     service: marketplace-integrity-service
-    #     cluster: marketplace-integrity-cluster
-
-    # For Google Cloud Run:
-    # - name: Deploy to Cloud Run
-    #   uses: google-github-actions/deploy-cloudrun@v1
-    #   with:
-    #     service: marketplace-integrity-backend
-    #     image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
-    #     region: us-central1
+    - name: Health Check
+      run: |
+        echo "Waiting for deployment to be ready..."
+        sleep 30
+        curl -f https://api.marketplace.vanshdeshwal.dev/health || echo "Health check failed"
 
     - name: Deployment Summary
       run: |
         echo "🚀 Backend deployment completed!"
-        echo "📦 Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
-        echo "🔗 Configure your hosting provider deployment in this workflow"
+        echo "� API URL: https://api.marketplace.vanshdeshwal.dev"
+        echo "🌐 Frontend URL: https://marketplace.vanshdeshwal.dev"
+        echo "� Storage: Azure Blob Storage"

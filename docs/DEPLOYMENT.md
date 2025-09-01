@@ -1,5 +1,20 @@
 # 🚀 Deployment Guide
 
+## 🌐 Production Architecture
+
+### Current Deployment Setup
+- **Frontend**: `marketplace.vanshdeshwal.dev` (GitHub Pages)
+- **Backend API**: `api.marketplace.vanshdeshwal.dev` (Azure App Service)
+- **Storage**: Azure Blob Storage (`marketplacestoragevd.blob.core.windows.net`)
+- **Database**: Azure Database for PostgreSQL (optional)
+
+### Deployment Workflow
+1. **Frontend Changes** → Automatic deployment to GitHub Pages
+2. **Backend Changes** → Automatic deployment to Azure App Service
+3. **Storage** → Direct Azure Blob access for images
+
+---
+
 ## Overview
 
 This guide covers deploying the Marketplace Integrity Framework to various environments, from local development to production cloud platforms.
@@ -124,6 +139,100 @@ AZURE_STORAGE_CONTAINER=marketplace-images
 ---
 
 ## ☁️ Cloud Deployment
+
+---
+
+## 📄 GitHub Pages Deployment (Frontend)
+
+### Setup GitHub Pages
+
+1. **Repository Settings**:
+   ```bash
+   # Go to repository Settings > Pages
+   # Source: GitHub Actions
+   # Custom domain: marketplace.vanshdeshwal.dev
+   ```
+
+2. **DNS Configuration**:
+   ```dns
+   # Add CNAME record in your DNS provider:
+   marketplace.vanshdeshwal.dev → vanshdeshwal.github.io
+   ```
+
+3. **Automatic Deployment**:
+   ```yaml
+   # .github/workflows/deploy-frontend.yml handles:
+   # - Building React app with production API URLs
+   # - Adding CNAME file
+   # - Deploying to GitHub Pages
+   ```
+
+4. **Environment Variables**:
+   ```env
+   REACT_APP_API_URL=https://api.marketplace.vanshdeshwal.dev
+   REACT_APP_ENV=production
+   PUBLIC_URL=https://marketplace.vanshdeshwal.dev
+   ```
+
+### Verify Deployment
+```bash
+# Check deployment status
+curl -s https://marketplace.vanshdeshwal.dev
+
+# Check API connectivity
+curl -s https://marketplace.vanshdeshwal.dev/static/js/main.*.js | grep "api.marketplace.vanshdeshwal.dev"
+```
+
+---
+
+## ☁️ Azure Deployment (Backend)
+
+### Setup Azure App Service
+
+1. **Create Azure Resources**:
+   ```bash
+   # Create resource group
+   az group create --name marketplace-rg --location eastus
+
+   # Create App Service plan
+   az appservice plan create --name marketplace-plan --resource-group marketplace-rg --sku B1 --is-linux
+
+   # Create web app
+   az webapp create --name marketplace-integrity-api --resource-group marketplace-rg --plan marketplace-plan --runtime "PYTHON|3.10"
+   ```
+
+2. **Configure Custom Domain**:
+   ```bash
+   # Add custom domain
+   az webapp config hostname add --webapp-name marketplace-integrity-api --resource-group marketplace-rg --hostname api.marketplace.vanshdeshwal.dev
+
+   # Enable HTTPS
+   az webapp config ssl bind --certificate-thumbprint {thumbprint} --ssl-type SNI --name marketplace-integrity-api --resource-group marketplace-rg
+   ```
+
+3. **GitHub Actions Deployment**:
+   ```bash
+   # Download publish profile from Azure portal
+   # Add to GitHub Secrets as AZURE_WEBAPP_PUBLISH_PROFILE
+   ```
+
+4. **Azure Blob Storage**:
+   ```bash
+   # Create storage account
+   az storage account create --name marketplacestoragevd --resource-group marketplace-rg --location eastus --sku Standard_LRS
+
+   # Create container
+   az storage container create --name catalog --account-name marketplacestoragevd --public-access blob
+   ```
+
+### Environment Configuration
+```bash
+# Azure App Settings (via Azure portal or CLI)
+CORS_ORIGINS=https://marketplace.vanshdeshwal.dev
+LOG_LEVEL=INFO
+DEVELOPMENT=false
+AZURE_STORAGE_CONNECTION_STRING={connection_string}
+```
 
 ### AWS Deployment
 
