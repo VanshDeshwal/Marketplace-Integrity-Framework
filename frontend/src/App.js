@@ -1,7 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Moon, Sun, Activity } from 'lucide-react';
+import React, { useState } from 'react';
 import Navbar from './components/Navbar';
-import TabNavigation from './components/TabNavigation';
 import DuplicateDetection from './components/DuplicateDetection';
 import SemanticSearch from './components/SemanticSearch';
 import FraudAnalysis from './components/FraudAnalysis';
