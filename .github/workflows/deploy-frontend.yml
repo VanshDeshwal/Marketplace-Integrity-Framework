@@ -55,3 +55,60 @@ jobs:
 				run: |
 					echo "🚀 Frontend deployed to GitHub Pages (branch: gh-pages)"
 					echo "🌐 URL: https://marketplace.vanshdeshwal.dev"
+name: Deploy Frontend to GitHub Pages
+
+on:
+	push:
+		branches: [ main ]
+		paths:
+			- 'frontend/**'
+			- '.github/workflows/deploy-frontend.yml'
+	repository_dispatch:
+		types: [deploy-frontend]
+	workflow_dispatch:
+
+permissions:
+	contents: write
+
+concurrency:
+	group: frontend-pages
+	cancel-in-progress: true
+
+jobs:
+	build-and-deploy:
+		runs-on: ubuntu-latest
+		steps:
+			- name: Checkout repository
+				uses: actions/checkout@v4
+
+			- name: Setup Node.js
+				uses: actions/setup-node@v4
+				with:
+					node-version: '18'
+					cache: 'npm'
+					cache-dependency-path: frontend/package-lock.json
+
+			- name: Install dependencies
+				working-directory: frontend
+				run: npm ci
+
+			- name: Build frontend
+				working-directory: frontend
+				env:
+					CI: "false"
+				run: npm run build
+
+			- name: Deploy to GitHub Pages
+				uses: peaceiris/actions-gh-pages@v3
+				with:
+					github_token: ${{ secrets.GITHUB_TOKEN }}
+					publish_branch: gh-pages
+					publish_dir: frontend/build
+					enable_jekyll: false
+					keep_files: false
+					cname: marketplace.vanshdeshwal.dev
+
+			- name: Deployment Summary
+				run: |
+					echo "🚀 Frontend deployed to GitHub Pages (branch: gh-pages)"
+					echo "🌐 URL: https://marketplace.vanshdeshwal.dev"
