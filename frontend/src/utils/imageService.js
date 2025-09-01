@@ -5,7 +5,13 @@ class ImageService {
   constructor() {
     this.isAzureBlob = false;
     this.azureBlobUrl = null;
-    this.detectStorageType();
+    // If the page provided a media base (from /storage-info or config), use it
+    if (typeof window !== 'undefined' && window.__MEDIA_BASE__) {
+      this.isAzureBlob = true;
+      this.azureBlobUrl = window.__MEDIA_BASE__;
+    } else {
+      this.detectStorageType();
+    }
   }
 
   async detectStorageType() {
@@ -33,12 +39,22 @@ class ImageService {
       return imagePath;
     }
 
-    // If using Azure Blob Storage
+    // If using Azure Blob Storage (or a configured media base)
     if (this.isAzureBlob && this.azureBlobUrl) {
       return `${this.azureBlobUrl}/${imagePath}`;
     }
 
-    // Local storage - use media server or backend static files
+    // If not flagged azure, still try a known media base fallback in hosted mode
+    try {
+      const { IS_LOCAL } = getApiConfig();
+      const FALLBACK = 'https://marketplacestoragevd.blob.core.windows.net/catalog';
+      if (!IS_LOCAL) {
+        const base = (typeof window !== 'undefined' && window.__MEDIA_BASE__) || FALLBACK;
+        if (base) return `${base}/${imagePath}`;
+      }
+    } catch (_) { /* ignore */ }
+
+    // Local dev fallback - serve from backend
     const { API_BASE } = getApiConfig();
     return `${API_BASE}/images/${imagePath}`;
   }
