@@ -1,7 +1,8 @@
 // Image service to handle both Azure Blob Storage and local images
+import { getApiConfig } from './api';
+
 class ImageService {
   constructor() {
-    this.baseUrl = process.env.REACT_APP_API_URL || 'http://localhost:8000';
     this.isAzureBlob = false;
     this.azureBlobUrl = null;
     this.detectStorageType();
@@ -9,8 +10,9 @@ class ImageService {
 
   async detectStorageType() {
     try {
+      const { API_BASE } = getApiConfig();
       // Check if backend is using Azure Blob Storage
-      const response = await fetch(`${this.baseUrl}/storage-info`);
+      const response = await fetch(`${API_BASE}/storage-info`);
       if (response.ok) {
         const data = await response.json();
         this.isAzureBlob = data.storage_type === 'azure_blob';
@@ -37,13 +39,15 @@ class ImageService {
     }
 
     // Local storage - use media server or backend static files
-    return `${this.baseUrl}/images/${imagePath}`;
+    const { API_BASE } = getApiConfig();
+    return `${API_BASE}/images/${imagePath}`;
   }
 
   // Get random sample images for testing
   async getRandomImages(count = 6) {
     try {
-      const response = await fetch(`${this.baseUrl}/random-images?count=${count}`);
+      const { API_BASE } = getApiConfig();
+      const response = await fetch(`${API_BASE}/random-images?count=${count}`);
       if (response.ok) {
         const data = await response.json();
         return data.images.map(img => ({
