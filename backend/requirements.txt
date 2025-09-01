@@ -1,15 +1,16 @@
+# Web framework
 fastapi==0.95.2
 uvicorn[standard]==0.22.0
 gunicorn==20.1.0
-sentence-transformers==2.2.2
-# PyTorch CPU-only versions (installed separately in Dockerfile)
-# torch==2.6.0+cpu
-# torchvision==0.17.0+cpu  
-# torchaudio==2.6.0+cpu
-open_clip_torch==2.24.0
-faiss-cpu==1.7.4
-numpy==1.26.4
 python-multipart==0.0.6
 pydantic==1.10.9
+
+# ML Libraries - let them install compatible PyTorch versions
+sentence-transformers==2.2.2
+open_clip_torch==2.24.0
+faiss-cpu==1.7.4
+
+# Data processing
+numpy==1.26.4
 scikit-learn==1.3.2
 Pillow==10.3.0
