@@ -47,6 +47,12 @@ class CORSFileResponse(FileResponse):
             "Access-Control-Allow-Headers": "*",
         })
 
+
+@app.get('/')
+def root():
+    """Root endpoint to satisfy Azure warmup HTTP pings on '/'."""
+    return {"status": "ok", "service": "marketplace-integrity-api"}
+
 # Lazy imports for optional libraries
 try:
     from sentence_transformers import SentenceTransformer
@@ -150,30 +156,64 @@ def _load_artifacts():
     return out
 
 
-# Load models used for query-time embedding if available
+"""
+Model loading strategy:
+- Avoid heavy downloads and long startup by deferring model loads until first use.
+- Only load when explicitly enabled via env variables to keep Azure warmup fast.
+
+Environment flags:
+  LOAD_TEXT_MODEL=1   -> allow loading SentenceTransformer at first use
+  LOAD_IMAGE_MODEL=1  -> allow loading OpenCLIP at first use
+
+Additionally, require presence of relevant artifacts to avoid accidental downloads.
+"""
+
 TEXT_MODEL_NAME = 'all-MiniLM-L6-v2'
 TEXT_MODEL = None
-if SentenceTransformer is not None:
-    try:
-        # Only load if we have the required packages and artifacts
-        if os.path.exists(ARTIFACT_DIR):
-            TEXT_MODEL = SentenceTransformer(TEXT_MODEL_NAME)
-    except Exception:
-        TEXT_MODEL = None
-
 IMG_MODEL = None
 IMG_PREPROCESS = None
-if open_clip is not None and torch is not None:
+
+LOAD_TEXT_MODEL = (os.getenv('LOAD_TEXT_MODEL', '0').strip() == '1')
+LOAD_IMAGE_MODEL = (os.getenv('LOAD_IMAGE_MODEL', '0').strip() == '1')
+
+def _has_artifact_file(filename: str) -> bool:
     try:
-        # Only load if we have the required packages and artifacts
-        if os.path.exists(ARTIFACT_DIR):
-            IMG_MODEL, _, IMG_PREPROCESS = open_clip.create_model_and_transforms('ViT-B-32', pretrained='openai')
-            IMG_MODEL.eval()
-            if torch.cuda.is_available():
-                IMG_MODEL.to('cuda')
+        return os.path.exists(os.path.join(ARTIFACT_DIR, filename))
     except Exception:
-        IMG_MODEL = None
-        IMG_PREPROCESS = None
+        return False
+
+def get_text_model():
+    global TEXT_MODEL
+    if TEXT_MODEL is not None:
+        return TEXT_MODEL
+    if not (LOAD_TEXT_MODEL and SentenceTransformer is not None):
+        return None
+    # Require at least one relevant local artifact to avoid remote downloads
+    if not (_has_artifact_file('faiss_text.index') or _has_artifact_file('text_embs.npy')):
+        return None
+    try:
+        TEXT_MODEL = SentenceTransformer(TEXT_MODEL_NAME)
+    except Exception:
+        TEXT_MODEL = None
+    return TEXT_MODEL
+
+def get_image_model():
+    global IMG_MODEL, IMG_PREPROCESS
+    if IMG_MODEL is not None and IMG_PREPROCESS is not None:
+        return IMG_MODEL, IMG_PREPROCESS
+    if not (LOAD_IMAGE_MODEL and open_clip is not None and torch is not None):
+        return None, None
+    # Require at least one relevant local artifact to avoid remote downloads
+    if not (_has_artifact_file('faiss_image.index') or _has_artifact_file('image_embs.npy')):
+        return None, None
+    try:
+        IMG_MODEL, _, IMG_PREPROCESS = open_clip.create_model_and_transforms('ViT-B-32', pretrained='openai')
+        IMG_MODEL.eval()
+        if torch.cuda.is_available():
+            IMG_MODEL.to('cuda')
+    except Exception:
+        IMG_MODEL, IMG_PREPROCESS = None, None
+    return IMG_MODEL, IMG_PREPROCESS
 
 
 ART = _load_artifacts()
@@ -315,6 +355,7 @@ def health():
     info = {
         'status': 'ok',
         'environment': 'production',
+        'healthcheck_path': '/health',
         'ml_dependencies': {
             'sentence_transformers': SentenceTransformer is not None,
             'torch': torch is not None,
@@ -323,8 +364,14 @@ def health():
         },
         'artifacts_loaded': {k: (v is not None) for k, v in ART.items()},
         'models_loaded': {
+            # Current in-memory state (lazy load is not triggered here)
             'text_model': TEXT_MODEL is not None,
             'image_model': IMG_MODEL is not None
+        },
+        'model_loading': {
+            'deferred': True,
+            'load_text_model_env': LOAD_TEXT_MODEL,
+            'load_image_model_env': LOAD_IMAGE_MODEL
         }
     }
     return info
@@ -332,9 +379,10 @@ def health():
 
 @app.post('/embed')
 def embed_title(req: EmbedRequest):
-    if TEXT_MODEL is None:
+    tm = get_text_model()
+    if tm is None:
         return {"error": "Text model not available on server. Install sentence-transformers."}
-    emb = TEXT_MODEL.encode([req.title], convert_to_numpy=True)
+    emb = tm.encode([req.title], convert_to_numpy=True)
     return {"embedding": emb[0].tolist()}
 
 
@@ -430,10 +478,11 @@ def _resolve_image_path(idx: int):
 
 @app.post('/dedup/title')
 def dedup_title(title: str = Form(...), top_k: int = Form(5)):
-    if ART.get('faiss_text') is None or TEXT_MODEL is None:
+    tm = get_text_model()
+    if ART.get('faiss_text') is None or tm is None:
         return {"error": "Text FAISS index or text model not available. Ensure artifacts and sentence-transformers are installed."}
 
-    q = TEXT_MODEL.encode([title], convert_to_numpy=True).astype('float32')
+    q = tm.encode([title], convert_to_numpy=True).astype('float32')
     q = _norm(q)
     index = ART['faiss_text']
     D, I = index.search(q, top_k)
@@ -453,17 +502,18 @@ def dedup_title(title: str = Form(...), top_k: int = Form(5)):
 async def dedup_image(file: UploadFile = File(...), top_k: int = Form(5)):
     if ART.get('faiss_image') is None:
         return {"error": "Image FAISS index not available. Ensure artifacts are placed in siamese_artifacts."}
-    if IMG_MODEL is None or IMG_PREPROCESS is None or Image is None:
+    im, ipre = get_image_model()
+    if im is None or ipre is None or Image is None:
         return {"error": "OpenCLIP or image dependencies not installed on server. Install open_clip_torch and pillow to enable image dedup."}
 
     contents = await file.read()
     from io import BytesIO
     pil = Image.open(BytesIO(contents)).convert('RGB')
-    x = IMG_PREPROCESS(pil).unsqueeze(0)
+    x = ipre(pil).unsqueeze(0)
     if torch.cuda.is_available():
         x = x.to('cuda')
     with torch.no_grad():
-        emb = IMG_MODEL.encode_image(x)
+        emb = im.encode_image(x)
         emb = emb.detach().cpu().numpy().astype('float32')
     emb = _norm(emb)
     index = ART['faiss_image']
@@ -493,22 +543,24 @@ async def dedup_fused(title: Optional[str] = Form(None), file: Optional[UploadFi
     text_emb_q = None
     img_emb_q = None
 
-    if title and TEXT_MODEL is not None and ART.get('faiss_text') is not None:
-        q = TEXT_MODEL.encode([title], convert_to_numpy=True).astype('float32')
+    tm = get_text_model()
+    if title and tm is not None and ART.get('faiss_text') is not None:
+        q = tm.encode([title], convert_to_numpy=True).astype('float32')
         q = _norm(q)
         D_t, I_t = ART['faiss_text'].search(q, top_k)
         candidates.update([int(x) for x in I_t[0]])
         text_emb_q = q[0]
 
-    if file is not None and IMG_MODEL is not None and ART.get('faiss_image') is not None:
+    im, ipre = get_image_model()
+    if file is not None and im is not None and ART.get('faiss_image') is not None:
         contents = await file.read()
         from io import BytesIO
         pil = Image.open(BytesIO(contents)).convert('RGB')
-        x = IMG_PREPROCESS(pil).unsqueeze(0)
+        x = ipre(pil).unsqueeze(0)
         if torch.cuda.is_available():
             x = x.to('cuda')
         with torch.no_grad():
-            emb = IMG_MODEL.encode_image(x)
+            emb = im.encode_image(x)
             emb = emb.detach().cpu().numpy().astype('float32')
         emb = _norm(emb)
         D_i, I_i = ART['faiss_image'].search(emb, top_k)
@@ -567,8 +619,9 @@ async def search(title: Optional[str] = Form(None), file: Optional[UploadFile] =
     text_emb_q = None
     img_emb_q = None
 
-    if title and TEXT_MODEL is not None and ART.get('faiss_text') is not None:
-        q = TEXT_MODEL.encode([title], convert_to_numpy=True).astype('float32')
+    tm = get_text_model()
+    if title and tm is not None and ART.get('faiss_text') is not None:
+        q = tm.encode([title], convert_to_numpy=True).astype('float32')
         q = _norm(q)
         D_t, I_t = ART['faiss_text'].search(q, top_k)
         text_emb_q = q[0]
@@ -576,15 +629,16 @@ async def search(title: Optional[str] = Form(None), file: Optional[UploadFile] =
             entry = candidates.setdefault(int(idx), {'idx': int(idx), 'meta': None, 'text_score': 0.0, 'image_score': 0.0})
             entry['text_score'] = max(entry['text_score'], float(score))
 
-    if file is not None and IMG_MODEL is not None and ART.get('faiss_image') is not None:
+    im, ipre = get_image_model()
+    if file is not None and im is not None and ART.get('faiss_image') is not None:
         contents = await file.read()
         from io import BytesIO
         pil = Image.open(BytesIO(contents)).convert('RGB')
-        x = IMG_PREPROCESS(pil).unsqueeze(0)
+        x = ipre(pil).unsqueeze(0)
         if torch.cuda.is_available():
             x = x.to('cuda')
         with torch.no_grad():
-            emb = IMG_MODEL.encode_image(x).detach().cpu().numpy().astype('float32')
+            emb = im.encode_image(x).detach().cpu().numpy().astype('float32')
         emb = _norm(emb)
         img_emb_q = emb[0]
         D_i, I_i = ART['faiss_image'].search(emb, top_k)
