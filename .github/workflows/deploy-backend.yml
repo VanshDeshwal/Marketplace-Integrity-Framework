@@ -13,6 +13,7 @@ on:
 
 env:
   AZURE_WEBAPP_NAME: marketplace-integrity-api
+  AZURE_RESOURCE_GROUP: marketplace-integrity-rg
   REGISTRY: ghcr.io
   IMAGE_NAME: vanshdeshwal/marketplace-integrity-framework-backend
 
@@ -52,10 +53,53 @@ jobs:
         publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
         images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
+    # Fallback deployment using Azure CLI with publish profile login.
+    # This explicitly sets the Linux container image and applies critical app settings.
+    - name: Azure Login (Publish Profile)
+      if: failure()
+      uses: azure/login@v1
+      with:
+        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+
+    - name: Configure container image via Azure CLI (fallback)
+      if: failure()
+      run: |
+        set -e
+        echo "Setting linuxFxVersion to DOCKER|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+        az webapp config set \
+          --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
+          --name "${{ env.AZURE_WEBAPP_NAME }}" \
+          --linux-fx-version "DOCKER|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+
+        echo "Applying essential app settings (port, healthcheck, startup time, disable Oryx)"
+        az webapp config appsettings set \
+          --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
+          --name "${{ env.AZURE_WEBAPP_NAME }}" \
+          --settings \
+            WEBSITES_PORT=8000 \
+            WEBSITE_HEALTHCHECK_PATH=/health \
+            WEBSITES_CONTAINER_START_TIME_LIMIT=900 \
+            SCM_DO_BUILD_DURING_DEPLOYMENT=false \
+            ENABLE_ORYX_BUILD=false
+
+        echo "Restarting web app"
+        az webapp restart \
+          --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
+          --name "${{ env.AZURE_WEBAPP_NAME }}"
+
+    - name: Verify Azure config (fallback)
+      if: always()
+      run: |
+        echo "Current linuxFxVersion and healthcheck path:"
+        az webapp config show \
+          --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" \
+          --name "${{ env.AZURE_WEBAPP_NAME }}" \
+          --query "{linuxFxVersion:linuxFxVersion, healthCheckPath:healthCheckPath, alwaysOn:alwaysOn}" -o tsv || true
+
     - name: Health Check
       run: |
         echo "Waiting for container deployment to be ready..."
-        sleep 60
+        sleep 90
         curl -f https://api.marketplace.vanshdeshwal.dev/health || echo "Health check failed - container may still be starting"
 
     - name: Deployment Summary
