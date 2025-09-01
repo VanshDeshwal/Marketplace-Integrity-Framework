@@ -6,7 +6,11 @@ import numpy as np
 import os
 from typing import List, Optional, Dict, Any
 
-app = FastAPI(title="Similarity-Driven Catalog Intelligence - Backend")
+app = FastAPI(
+    title="Marketplace Integrity Framework API",
+    description="AI-powered API for detecting duplicate and similar products in marketplace",
+    version="1.0.1"
+)
 
 # CORS configuration for production and development
 app.add_middleware(
