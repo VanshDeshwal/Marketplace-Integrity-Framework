@@ -35,12 +35,15 @@ jobs:
 
       - name: Install dependencies
         working-directory: frontend
-        run: npm ci
+        run: |
+          npm ci
+          ls -la src/
 
       - name: Build frontend
         working-directory: frontend
         env:
           CI: "false"
+          GENERATE_SOURCEMAP: "false"
         run: npm run build
 
       - name: Deploy to GitHub Pages
