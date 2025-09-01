@@ -6,27 +6,23 @@ export const getApiConfig = () => {
   const API_BASE = IS_LOCAL 
     ? 'http://localhost:8000' 
     : 'https://api.marketplace.vanshdeshwal.dev';
-    
-  // Prefer backend-reported blob base when hosted; fall back to known blob container
-  const FALLBACK_BLOB = 'https://marketplacestoragevd.blob.core.windows.net/catalog';
-  const MEDIA_BASE = IS_LOCAL 
-    ? (localStorage.getItem('mediaBase') || '') 
-    : (window.__MEDIA_BASE__ || FALLBACK_BLOB);
+  
+  // Hardcoded Azure Blob base for images (always use blob; no local/backend fallback)
+  const MEDIA_BASE = 'https://marketplacestoragevd.blob.core.windows.net/catalog';
   
   return { API_BASE, MEDIA_BASE, IS_LOCAL };
 };
 
 export const getImageSrc = (result) => {
   const { API_BASE, MEDIA_BASE } = getApiConfig();
-  
-  // Prefer direct image_url from backend if present (points to blob in prod)
-  if (result.image_url) return result.image_url;
-  
-  // Else, try media base + key
-  if (MEDIA_BASE && result.image_key) return `${MEDIA_BASE}/${result.image_key}`;
-  
-  // Fallback: backend image endpoint (dev only)
-  return `${API_BASE}/image/${result.idx}`;
+
+  // Always build from blob base when key/path is available
+  if (result.image_key) return `${MEDIA_BASE}/${result.image_key}`;
+  if (result.image_path) return `${MEDIA_BASE}/${result.image_path}`;
+  // If API provided a full URL, use it (e.g., already a blob URL)
+  if (typeof result.image_url === 'string' && /^(https?:)?\/\//.test(result.image_url)) return result.image_url;
+  // Otherwise, no image
+  return '';
 };
 
 export const apiRequest = async (endpoint, options = {}) => {

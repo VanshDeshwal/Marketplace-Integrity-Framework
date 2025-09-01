@@ -55,8 +55,8 @@ const ResultsContainer = ({ results, activeTab }) => {
       {results.map((result, index) => (
         <div key={index} className="result-card">
           <div className="result-image">
-            <img 
-              src={imageService.getImageUrl(result.image_path || result.image)} 
+              <img 
+                src={imageService.getImageUrl(result.image_key || result.image_path || result.image)} 
               alt={result.title || 'Product'}
               onError={(e) => imageService.handleImageError(e)}
             />

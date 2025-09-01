@@ -3,32 +3,10 @@ import { getApiConfig } from './api';
 
 class ImageService {
   constructor() {
-    this.isAzureBlob = false;
-    this.azureBlobUrl = null;
-    // If the page provided a media base (from /storage-info or config), use it
-    if (typeof window !== 'undefined' && window.__MEDIA_BASE__) {
-      this.isAzureBlob = true;
-      this.azureBlobUrl = window.__MEDIA_BASE__;
-    } else {
-      this.detectStorageType();
-    }
+    this.azureBlobUrl = 'https://marketplacestoragevd.blob.core.windows.net/catalog';
   }
 
-  async detectStorageType() {
-    try {
-      const { API_BASE } = getApiConfig();
-      // Check if backend is using Azure Blob Storage
-      const response = await fetch(`${API_BASE}/storage-info`);
-      if (response.ok) {
-        const data = await response.json();
-        this.isAzureBlob = data.storage_type === 'azure_blob';
-        this.azureBlobUrl = data.blob_url;
-      }
-    } catch (error) {
-      // Use local storage fallback
-      this.isAzureBlob = false;
-    }
-  }
+  async detectStorageType() { /* no-op when hardcoded */ }
 
   // Get the full URL for an image
   getImageUrl(imagePath) {
@@ -39,24 +17,13 @@ class ImageService {
       return imagePath;
     }
 
-    // If using Azure Blob Storage (or a configured media base)
-    if (this.isAzureBlob && this.azureBlobUrl) {
+  // Always use Azure Blob base
+  if (this.azureBlobUrl) {
       return `${this.azureBlobUrl}/${imagePath}`;
     }
 
-    // If not flagged azure, still try a known media base fallback in hosted mode
-    try {
-      const { IS_LOCAL } = getApiConfig();
-      const FALLBACK = 'https://marketplacestoragevd.blob.core.windows.net/catalog';
-      if (!IS_LOCAL) {
-        const base = (typeof window !== 'undefined' && window.__MEDIA_BASE__) || FALLBACK;
-        if (base) return `${base}/${imagePath}`;
-      }
-    } catch (_) { /* ignore */ }
-
-    // Local dev fallback - serve from backend
-    const { API_BASE } = getApiConfig();
-    return `${API_BASE}/images/${imagePath}`;
+  // Fallback to empty if misconfigured
+  return '';
   }
 
   // Get random sample images for testing

@@ -764,19 +764,9 @@
       const isFile = location.protocol === 'file:'
       const IS_LOCAL = isLocalHost || isFile
       envLabel.textContent = IS_LOCAL ? 'local' : 'hosted'
-      const API_BASE = IS_LOCAL ? 'http://localhost:8000' : 'https://api.marketplace.vanshdeshwal.dev'
-      const FALLBACK_BLOB = 'https://marketplacestoragevd.blob.core.windows.net/catalog'
-      let MEDIA_BASE = IS_LOCAL ? (localStorage.getItem('mediaBase') || '') : FALLBACK_BLOB
-      // Try to detect from backend at runtime
-      if (!IS_LOCAL) {
-        fetch(API_BASE + '/storage-info', { cache:'no-store' }).then(r=>r.json()).then(j=>{
-          if (j && j.storage_type === 'azure_blob' && j.blob_url) {
-            MEDIA_BASE = j.blob_url
-            window.__MEDIA_BASE__ = MEDIA_BASE
-          }
-        }).catch(()=>{})
-        window.__MEDIA_BASE__ = MEDIA_BASE
-      }
+  const API_BASE = IS_LOCAL ? 'http://localhost:8000' : 'https://api.marketplace.vanshdeshwal.dev'
+  const MEDIA_BASE = 'https://marketplacestoragevd.blob.core.windows.net/catalog'
+  window.__MEDIA_BASE__ = MEDIA_BASE
 
       const ping = async () => {
         try {
@@ -840,12 +830,10 @@
       if (alphaSearch) alphaSearch.addEventListener('input', () => alphaSearchVal.textContent = Number(alphaSearch.value).toFixed(2))
 
       const imgSrc = (r) => {
-        // Prefer direct image_url from backend if present and not localhost
-        if (r.image_url && !(r.image_url || '').includes('localhost')) return r.image_url
-        // Else, try media base + key
-        if (MEDIA_BASE && r.image_key) return `${MEDIA_BASE}/${r.image_key}`
-        // Fallback: backend image endpoint (dev only)
-        return `${API_BASE}/image/${r.idx}`
+        if (r.image_key) return `${MEDIA_BASE}/${r.image_key}`
+        if (r.image_path) return `${MEDIA_BASE}/${r.image_path}`
+        if (r.image_url && /^(https?:)?\/\//.test(r.image_url)) return r.image_url
+        return ''
       }
 
       // Sample gallery logic
@@ -1106,7 +1094,7 @@
           j.results.forEach(p => {
             const row = el('div', 'result')
             row.innerHTML = `
-              <img src="${p.a_url || (MEDIA_BASE && p.a_key ? MEDIA_BASE + '/' + p.a_key : API_BASE + '/image/' + p.a)}" class="thumb-sm" alt="thumb" onerror="this.style.display='none'"/>
+              <img src="${(p.a_key ? MEDIA_BASE + '/' + p.a_key : (p.a_url || ''))}" class="thumb-sm" alt="thumb" onerror="this.style.display='none'"/>
               <div class='kvs'>${kv('a', p.a)} ${kv('b', p.b)} ${kv('score', Number(p.score).toFixed(3))}</div>
               <div class='kvs'>${p.a_meta ? kv('a_title', p.a_meta.title ?? '') : ''} ${p.b_meta ? kv('b_title', p.b_meta.title ?? '') : ''}</div>`
             resBox.appendChild(row)
