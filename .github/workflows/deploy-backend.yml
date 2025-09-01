@@ -14,7 +14,7 @@ on:
 env:
   AZURE_WEBAPP_NAME: marketplace-integrity-api
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}-backend
+  IMAGE_NAME: vanshdeshwal/marketplace-integrity-framework-backend
 
 jobs:
   deploy:
@@ -93,3 +93,4 @@ jobs:
         echo "🔗 API URL: https://api.marketplace.vanshdeshwal.dev"
         echo "🌐 Frontend URL: https://marketplace.vanshdeshwal.dev"
         echo "💾 Storage: Azure Blob Storage"
+        echo "✅ Fixed lowercase repository name issue"
