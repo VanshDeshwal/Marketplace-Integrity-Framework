@@ -36,7 +36,7 @@ jobs:
       - name: Install dependencies
         working-directory: frontend
         run: |
-          npm ci
+          npm install
           ls -la src/
 
       - name: Build frontend
