@@ -54,6 +54,7 @@ jobs:
           publish_dir: frontend/build
           enable_jekyll: false
           keep_files: false
+          force_orphan: true
           cname: marketplace.vanshdeshwal.dev
 
       - name: Deployment Summary
